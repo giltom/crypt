@@ -64,14 +64,11 @@ for cnt,fname in enumerate(os.listdir(args.dir)):
 
 if args.verbose:
     print('Creating output...')
-"""
-pickle.dump(ngrams, args.out)
-args.out.close()
-"""
+
+args.out.write(bytes([args.n]))     #write ngram size to first byte
 cnt = 0
 nkeys = len(ngrams.keys())
 for gram in ngrams:
-    #tot = sum(ngrams[gram].values())
     args.out.write(struct.pack(ngram_fmt, 1, gram))
     for byte in ngrams[gram]:
         args.out.write(struct.pack(char_fmt, 0, byte, ngrams[gram][byte]))

@@ -45,7 +45,7 @@ for i,c in enumerate(ciphertext):
         prefix = ostate[max(len(ostate) - args.depth + 1, 0):]  #depth last bytes of state
         for p in range(256):     #fill plantext probability lookup
             plain_lookup[p] = cpdistr[prefix].prob(p)
-        probsum = sum(key_lookup[k] * plain_lookup[c ^ k] for k in range(256))     #used in baye's formula
+        probsum = math.fsum(key_lookup[k] * plain_lookup[c ^ k] for k in range(256))     #used in baye's formula
         for p in range(256):     #iterate over possible plaintext bytes
             prob = (plain_lookup[p] * key_lookup[p ^ c]) / probsum    #get updated probability with baye's theorem
             dist = states[ostate] - math.log(prob)   #maximizing the product of probabilities is equivalent to minimizing the sum of their logs
