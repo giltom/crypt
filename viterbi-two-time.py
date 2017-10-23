@@ -1,10 +1,9 @@
-import nltk
 import math
-import pickle
 import argparse
 import string
 import itertools
 import sys
+import stats
 
 #xor all bytes in bytes objects
 def xor_all(bytes1, bytes2):
@@ -31,8 +30,7 @@ def all_xor_pairs(xor):
 parser = argparse.ArgumentParser()
 parser.add_argument('cipher1', type=argparse.FileType('rb'))
 parser.add_argument('cipher2', type=argparse.FileType('rb'))
-parser.add_argument('distfile', metavar='distribution', type=argparse.FileType('rb'))
-parser.add_argument('depth', type=int)
+parser.add_argument('distfile', metavar='distribution')
 parser.add_argument('-p', dest='prune', type=int, default=100, help='Prune search graph to given number of vertices after each iteration. Default: 100.')
 parser.add_argument('-o1', dest='output1', help='file to write plaintext 1 to', type=argparse.FileType('wb'))
 parser.add_argument('-o2', dest='output2', help='file to write plaintext 2 to', type=argparse.FileType('wb'))
@@ -47,9 +45,7 @@ if args.number and args.number > PRUNE:
     print('-n can\'t be larger than -p.')
     sys.exit(1)
 
-if args.verbose:
-    print('Loading distribution data...')
-dist = pickle.load(args.distfile)
+dist = stats.NGramStats(args.distfile, args.verbose)
 cipher1 = args.cipher1.read()
 cipher2 = args.cipher2.read()
 
@@ -57,6 +53,8 @@ cipher2 = args.cipher2.read()
 #We prune the results after each iteration, so it doesn't really guarantee the best probability
 #This is in order to avoid about 256^7 bytes of memory usage assuming n=7 (which is totally unrealistic)
 
+if args.verbose:
+    print('Attempting decryption...')
 #Dictionary containing states of previous step
 #Key is tuple of n-grams, value is the "length" of the shortest path to that state
 states = {(b'', b''):0} #initial state is empty with 0 "length"
@@ -64,10 +62,10 @@ cipherlen = min(len(cipher1), len(cipher2))
 for i,t in enumerate(zip(cipher1, cipher2)):
     newstates = {}
     for ostate in states:
-        prefix1 = ostate[0][max(len(ostate[0]) - args.depth + 1, 0):]  #depth last bytes of text 1
-        prefix2 = ostate[1][max(len(ostate[1]) - args.depth + 1, 0):]  #depth last bytes of text 2
+        prefix1 = ostate[0][max(len(ostate[0]) - dist.n + 1, 0):]  #n last bytes of text 1
+        prefix2 = ostate[1][max(len(ostate[1]) - dist.n + 1, 0):]  #n last bytes of text 2
         for p,q in all_xor_pairs(t[0] ^ t[1]):     #iterate over possible plaintext bytes
-            prob = dist[prefix1].prob(p) * dist[prefix2].prob(q)
+            prob = dist.prob(prefix1, p) * dist.prob(prefix2, q)
             length = states[ostate] - math.log(prob)   #maximizing the product of probabilities is equivalent to minimizing the sum of their logs
             #update newstates with new path information
             if len(newstates) < PRUNE:

@@ -27,8 +27,10 @@ C_GROUPS = [
     ('FREQ_PRINTABLE', string.printable.encode('ASCII'), lambda x: x, None)
 ]
 
-ngram_fmt = '>B{:d}p'.format(args.n)   #1,prefix
-char_fmt = '>BBI'   #0, char, count after the last prefix
+if args.n > 256:
+    print('n-gram length too large.')
+    sys.exit(1)
+
 c_counts = [0]*256
 ngrams = {}
 
@@ -65,16 +67,43 @@ for cnt,fname in enumerate(os.listdir(args.dir)):
 if args.verbose:
     print('Creating output...')
 
-args.out.write(bytes([args.n]))     #write ngram size to first byte
+###File Format:
+#The first byte of the file contains the n-gram size - 1. After that, each ngram is stored as following:
+#The first n bytes contain the (n-1)-gram, as a "pascal string" - 1st byte is the length, and after that follows the string itself.
+#The byte after that contains the number of character entries for the (n-1)-gram, *minus 1*
+#The byte after that contains log2(the number of bytes per character entry) - 0,1,2, or 3 - depending on the amount of storage needed.
+#After that, the specified number of entries follow:
+##Each entry consists of one byte containing the character,
+##And then the specified number of bytes containing the count of that character (big endian, unsigned).
+
+ngram_fmt = '>{:d}pBB'.format(args.n)   #1,prefix
+MAX_1_BYTE = 2**8 - 1
+MAX_2_BYTES = 2**16 - 1
+MAX_4_BYTES = 2**32 - 1
+
+args.out.write(bytes([args.n - 1]))     #write ngram size-1 to first byte
 cnt = 0
-nkeys = len(ngrams.keys())
+nkeys = len(ngrams)
 for gram in ngrams:
-    args.out.write(struct.pack(ngram_fmt, 1, gram))
+    maxcnt = max(ngrams[gram].values())
+    if maxcnt <= MAX_1_BYTE:
+        nbytes = 0
+        char_fmt = '>BB'
+    elif maxcnt <= MAX_2_BYTES:
+        nbytes = 1
+        char_fmt = '>BH'
+    elif maxcnt <= MAX_4_BYTES:
+        nbytes = 2
+        char_fmt = '>BI'
+    else:
+        nbytes = 3
+        char_fmt = '>BQ'
+    args.out.write(struct.pack(ngram_fmt, gram, len(ngrams[gram]) - 1, nbytes))
     for byte in ngrams[gram]:
-        args.out.write(struct.pack(char_fmt, 0, byte, ngrams[gram][byte]))
+        args.out.write(struct.pack(char_fmt, byte, ngrams[gram][byte]))
     if args.verbose:
         cnt += 1
-        if cnt % 1000 == 0:
+        if cnt % 100000 == 0:
             print('{:.02%} complete.'.format(cnt/nkeys))
 args.out.close()
 
