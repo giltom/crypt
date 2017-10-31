@@ -1,17 +1,14 @@
-from lib import *
+from cryptutil import *
+from challenge import *
+import random
 
-def dec(c,k):
-    return xor_repeat(c,bytes([k]))
-
-def score(p):
-    return count_words(p, EN_WORDS, lower=True)
-
-res = []
-for line in open('data/xors.txt','r'):
-    h = line.strip()
-    if h != '':
-        b = hex2bytes(h)
-        ranks = rank_keys(b, range(256), dec, score, filt=all_printable, maxkeys=3)
-        res.extend((h,)+rank for rank in ranks)
-res.sort(key=lambda t: t[3], reverse=True)
-print(res[0])
+####Challenge 16
+key = random_aes_key()
+iv = random_aes_key()
+prefix = b'comment1=cooking%20MCs;userdata='
+suffix = b';comment2=%20like%20a%20pound%20of%20bacon'
+replace = {b'=' : b'\\=', b';' : b'\\;'}
+encrypt = lambda p: aes_encrypt_cbc(p, key, iv)
+encrypt_oracle = insert_encrypt_oracle(prefix, suffix, encrypt, replace=replace)
+decrypt_oracle = lambda c: b';admin=true;' in aes_decrypt_cbc(c, key, iv)
+payload = b'aaaaaaaaaaaaa'
