@@ -11,12 +11,12 @@ import math
 ##Each entry consists of one byte containing the character,
 ##And then the specified number of bytes containing the count of that character (big endian, unsigned).
 
-#Index is log2(number of bytes), value 0 is the format, value 2 is the total number of bytes to read
+#Index is log2(number of bytes), value is the format
 FORMATS = [
-    ('>BB', 2),
-    ('>BH', 3),
-    ('>BI', 5),
-    ('>BQ', 9)
+    struct.Struct('>BB'),
+    struct.Struct('>BH'),
+    struct.Struct('>BI'),
+    struct.Struct('>BQ')
 ]
 
 class NGramStats:
@@ -27,18 +27,20 @@ class NGramStats:
         fsize = os.path.getsize(fname)
         self.ngrams = {}
         self.n = f.read(1)[0] + 1 #read ngram size
-        ngram_fmt = '>{:d}pBB'.format(self.n)
-        ngram_size = struct.calcsize(ngram_fmt)
+        ngram_fmt = struct.Struct('>{:d}pBB'.format(self.n))
+        ngram_size = ngram_fmt.size
         cnt = 0
         while True:
             chunk = f.read(ngram_size)
             if len(chunk) == 0:
                 break    #done reading
-            curr, ncharsm1, entrylen = struct.unpack(ngram_fmt, chunk)   #new ngram
-            char_fmt, char_size = FORMATS[entrylen]
+            curr, ncharsm1, entrylen = ngram_fmt.unpack(chunk)   #new ngram
+            char_fmt = FORMATS[entrylen]
+            char_size = char_fmt.size
             self.ngrams[curr] = {}
-            for _ in range(ncharsm1 + 1):   #add all chars in the n-gram
-                c, count = struct.unpack(char_fmt, f.read(char_size))
+            block = f.read(char_size * (ncharsm1 + 1))
+            for i in range(0, len(block), char_size):   #add all chars in the n-gram
+                c, count = char_fmt.unpack_from(block[i:])
                 self.ngrams[curr][c] = count
             if verbose:
                 cnt +=1
@@ -52,7 +54,6 @@ class NGramStats:
             tot = sum(self.ngrams[gram].values()) + len(self.ngrams[gram])
             for byte in self.ngrams[gram]:
                 self.ngrams[gram][byte] /= tot
-
 
     def prob(self, pref, char):
         if char < 0 or char >= 256:
