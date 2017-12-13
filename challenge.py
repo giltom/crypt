@@ -1,6 +1,7 @@
 from cryptutil import *
-import os
 from oracles import *
+from const import *
+import os
 import itertools
 
 #returns key,plaintext
@@ -61,9 +62,9 @@ def ecb_identify_block(oracle):
         end += 1
     return end - start, end - dist  #block size, start of string
 
-#Oracle should accept a plaintext, add a prefix and suffix to it, and then encrypt it with ECB
-#using a constant key.
+#Oracle should accept a plaintext, add a prefix and suffix to it, and then encrypt it with ECB using a constant key.
 #Decrypts the suffix.
+#Determines block size automatically.
 def break_ecb_insert(oracle):
     bsize, start = ecb_identify_block(oracle)
     prefix = b'a' * (bsize - start % bsize)     #prefix added to get to start of next block
@@ -78,3 +79,37 @@ def break_ecb_insert(oracle):
                     res += bytes([byte])
                     break
     return res
+
+#Padding oracle attack against CBC encryption with given block size and IV. Decrypts full ciphertext.
+#oracle should accept a ciphertext and IV and return True if resulting plaintext has valid PKCS7 padding.
+#Can safely assume that the given IV will always be used in oracle queries, so the IV argument of the oracle can be ignored in the oracle implementation.
+#However the IV is needed to decrypt the first block (other blocks will be correct even if the IV is wrong).
+def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
+    dblocks = []    #raw decrypted blocks before they are XORed with each other
+    cblocks = get_blocks(ciphertext, bsize) #ciphertext blocks
+    for cblock in cblocks:   #current ciphertext block being decrypted
+        text = bytearray(bsize) + cblock  #two blocks that we control and repeatedly change and send the oracle
+        byteind = bsize - 1     #index in block of byte being decrypted
+        while byteind >= 0:
+            padlen = bsize - byteind - 1   #length of padding achieved up until now
+            for i in range(bsize - 1, byteind, -1): #this does nothing on the 1st iteration
+                text[i] = text[i] ^ padlen ^ (padlen + 1)   #xor bytes up to current index so we get almost valid padding except for one byte
+            while not oracle(bytes(text), iv):  #go through all byte values until we get valid padding
+                text[byteind] += 1
+            byteind -= 1
+            while byteind >= 0:
+                text[byteind] ^= 1  #flip a bit to see if the padding gets fucked up
+                answer = oracle(bytes(text), iv)
+                text[byteind] ^= 1  #flip it back
+                if answer:    #stop if padding is good - this means we reached the end of the decrypted bytes
+                    break
+                byteind -= 1
+        for i in range(0, bsize):   #at this point the "plaintext" decrypted by the oracle ends in a full block of bsizes, xor to cancel them out and get the decryption.
+            text[i] ^= bsize
+        dblocks.append(bytes(text[0:bsize]))
+    #We now have the decrypted ciphertext blocks, before they are xored with each other (as if decrypted in ECB mode)
+    #all that's left is to simulate CBC mode and get the real plaintext
+    plain = xor(dblocks[0], iv)
+    for i in range(1, len(dblocks)):
+        plain += xor(dblocks[i], cblocks[i-1])
+    return plain

@@ -72,3 +72,20 @@ def encrypt_cookie_oracle(email):
 def decrypt_cookie(ciphertext):
     cookie = aes_decrypt_ecb(ciphertext, cookie_key)
     return parse_cookie(cookie)
+
+#Returns function accepting ciphertext and decrypting with given IV, returning True if PKCS7 padding on plaintext is valid.
+#bsize is block size
+def pkcs7_padding_oracle(decrypter, bsize):
+    return lambda c, iv: pkcs7_is_valid(decrypter(c, iv), bsize)
+
+#Returns decrypter for given key in AES CBC mode, using given padding or no padding if None
+def aes_cbc_decrypter(key, unpad=pkcs7_unpad_16):
+    return lambda c, iv: aes_decrypt_cbc(c, key, iv, unpad=unpad)
+
+#Returns encrypter for given key in AES CBC mode, using given padding or no padding if None (will throw error if bad size).
+def aes_cbc_encrypter(key, pad=pkcs7_pad_16):
+    return lambda p, iv: aes_encrypt_cbc(p, key, iv, pad=pad)
+
+#Returns oracle that returns true if given ciphertext and IV decrypt to plaintext with valid PKCS7 padding
+def aes_cbc_pkcs7_padding_oracle(key):
+    return pkcs7_padding_oracle(aes_cbc_decrypter(key, unpad=None), 16)

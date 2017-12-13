@@ -2,13 +2,26 @@ from cryptutil import *
 from challenge import *
 import random
 
-####Challenge 16
+####Challenge 17
+plains = [
+    'MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=',
+    'MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic=',
+    'MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw==',
+    'MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg==',
+    'MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl',
+    'MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA==',
+    'MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw==',
+    'MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8=',
+    'MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=',
+    'MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93'
+]
 key = random_aes_key()
-iv = random_aes_key()
-prefix = b'comment1=cooking%20MCs;userdata='
-suffix = b';comment2=%20like%20a%20pound%20of%20bacon'
-replace = {b'=' : b'\\=', b';' : b'\\;'}
-encrypt = lambda p: aes_encrypt_cbc(p, key, iv)
-encrypt_oracle = insert_encrypt_oracle(prefix, suffix, encrypt, replace=replace)
-decrypt_oracle = lambda c: b';admin=true;' in aes_decrypt_cbc(c, key, iv)
-payload = b'aaaaaaaaaaaaa'
+for plain_b64 in plains:
+    plaintext = base642bytes(plain_b64)
+    print("Plaintext:")
+    print(plaintext)
+    iv = random_aes_key()
+    ciphertext = aes_encrypt_cbc(plaintext, key, iv)
+    oracle = aes_cbc_pkcs7_padding_oracle(key)
+    print("Decryption:")
+    print(pkcs7_padding_oracle_attack(oracle, 16, ciphertext, iv))

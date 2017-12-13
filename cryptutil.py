@@ -175,6 +175,13 @@ def iter_blocks(b, blocksize):
     for i in range(0, (len(b)//blocksize)*blocksize, blocksize):
         yield b[i:i+blocksize]
 
+#join list of blocks
+def join_blocks(blocks):
+    b = b''
+    for block in blocks:
+        b += block
+    return b
+
 #average of normalized hamming distance between every two blocks in the bytes object
 #This is low when the texts are similar, making it a good metric for the key length in the vigenere cipher
 def average_block_hamming(b, bsize):
@@ -197,6 +204,13 @@ def pkcs7_pad_16(b):
 
 def pkcs7_unpad_16(b):
     return pkcs7_unpad(b, 16)
+
+def pkcs7_is_valid(b, bsize):
+    try:
+        pkcs7_unpad(b, bsize)
+        return True
+    except ValueError:
+        return False
 
 #AES encryption using given mode and padding function or no padding if None (will raise an exception if padding is required by the mode).
 def aes_encrypt(plaintext, key, mode, pad=None):

@@ -14,3 +14,5 @@ EN_WORDS.pop()  #remove final b''
 
 BACKEND = default_backend()
 ECB_MODE = modes.ECB()
+
+ZERO_16 = b'\x00'*16
