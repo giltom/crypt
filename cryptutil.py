@@ -236,3 +236,26 @@ def replace_all(b, d):
     for key in d:
         b = b.replace(key, d[key])
     return b
+
+def bytes2bitstring(b):
+    s = ''
+    for byte in b:
+        s += '{:08b}'.format(byte)
+    return s
+
+def bitstring2bytes(s):
+    b = []
+    for start in range(0, len(s), 8):
+        bits = s[start:start+8]
+        b.append(int(bits, 2))
+    return bytes(b)
+
+def lfsr_stream(nbits, start, feedback_bit, length):
+    reg = start
+    out = ''
+    for _ in range(length):
+        bit = reg & 1
+        out += str(bit)
+        feedback = 1 if reg & (1 << feedback_bit) else 0
+        reg = (reg >> 1) | ((feedback ^ bit) << (nbits - 1))
+    return out
