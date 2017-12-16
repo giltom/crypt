@@ -3,20 +3,33 @@ from oracles import *
 from const import *
 import os
 import itertools
+import heapq
+import string
 
-#returns key,plaintext
+#returns key,plaintext or None
 def break_single_char_xor(b):
-    return rank_best(b, range(256), lambda c,k: xor_repeat(c, bytes([k])), nonws_freq_score, filt=all_printable)
+    return rank_best(b, keys, lambda c,k: xor_repeat(c, bytes([k])), nonws_freq_score, filt=is_base64)
 
 #break repeating key xor ("vigenere cipher") with frequency analysis
-def break_repeating_xor(b):
-    keylen = min(range(2,41), key=lambda i: average_block_hamming(b, i))
-    key = b''
-    for offset in range(keylen):
-        s = b[offset::keylen]
-        byte = break_single_char_xor(s)[0]
-        key += bytes([byte])
-    return key, xor_repeat(b, key)
+def break_repeating_xor(b, n=1000):
+    res = []
+    keylens = heapq.nsmallest(n, range(1,len(b)//2), key=lambda i: average_block_hamming(b, i))
+    for keylen in keylens:
+        print(keylen)
+        key = b''
+        notfound = False
+        for offset in range(keylen):
+            s = b[offset::keylen]
+            char = break_single_char_xor(s)
+            if char is None:
+                notfound = True
+                break
+            byte = char[0]
+            key += bytes([byte])
+        if notfound:
+            continue
+        res.append((key, xor_repeat(b, key)))
+    return res
 
 #oracle should accept a plaintext and encrypt it however it wants. it can add a prefix and suffix.
 #Will determine if uses ECB mode with just one encryption

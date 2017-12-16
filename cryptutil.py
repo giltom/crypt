@@ -5,6 +5,7 @@ from const import *
 import string
 import itertools
 import os
+import heapq
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
@@ -87,6 +88,17 @@ def all_printable(b):
     s = set(string.printable.encode('ASCII'))
     return all(byte in s for byte in b)
 
+def all_nonws(b):
+    s = set(string.printable.encode('ASCII')) - set(string.whitespace.encode('ASCII'))
+    return all(byte in s for byte in b)
+
+def is_base64(b):
+    try:
+        base64.b64decode(b, validate=True)
+        return True
+    except binascii.Error:
+        return False
+
 #count number of non-overlapping substrings in b using the given wordlist, which should be a list of bytes
 def count_substrings(b, wordlist):
     count = 0
@@ -104,11 +116,17 @@ def count_words(b, wordlist, lower=False):
             count += 1
     return count
 
+#The lower this is, the closer it is to the given distribution
+def freq_dist(b, probs):
+    counts = count_bytes(b)
+    tot = sum(counts[i] for i in probs)
+    return math.sqrt(math.fsum((counts[i]/tot - probs[i])**2 for i in probs))
+
 #Return inverse of distance between "frequency vectors"
 #This is my best metric for automated frequency analysis
+#The higher this is, the closer it is to the given distribution
 def inverse_freq_dist(b, probs):
-    counts = count_bytes(b)
-    return 1/math.sqrt(math.fsum((counts[i]/len(b) - probs[i])**2 for i in probs))
+    return 1/freq_dist(b, probs)
 
 #Lower all characters in the string and remove non-letter characters:
 def to_alpha(b):
@@ -145,6 +163,8 @@ def rank_keys(cipher, keys, decfn, scorefn, filt=None, maxkeys=None):
 #return (key,plaintext) with best rank returned by rank_keys
 def rank_best(cipher, keys, decfn, scorefn, filt=None):
     res = rank_keys(cipher, keys, decfn, scorefn, filt=filt, maxkeys=1)
+    if len(res) == 0:
+        return None
     return res[0][0], res[0][1]
 
 #number of ones in binary integer
@@ -186,6 +206,8 @@ def join_blocks(blocks):
 #This is low when the texts are similar, making it a good metric for the key length in the vigenere cipher
 def average_block_hamming(b, bsize):
     blocks = get_blocks(b, bsize)
+    if len(blocks) <= 1:
+        return 4
     npairs = len(blocks) * (len(blocks) - 1) / 2    #n choose 2
     tot = math.fsum(normalized_hamming_distance(b1,b2) for b1,b2 in itertools.combinations(blocks, r=2))
     return tot / npairs
@@ -273,3 +295,87 @@ def lfsr_stream(nbits, start, feedback_bit, length):
         feedback = 1 if reg & (1 << feedback_bit) else 0
         reg = (reg >> 1) | ((feedback ^ bit) << (nbits - 1))
     return out
+
+#true if square number
+def is_square(n):
+    start = n - 1
+    prev = start
+    while True:
+        new = (prev + start // prev) >> 1
+        if new == prev:
+            return False
+        if new > prev:
+            return True
+        prev = new
+
+#integer square root (rounded down)
+def isqrt(n):
+    x = n
+    y = (x + 1) >> 1
+    while y < x:
+        x = y
+        y = (x + n // x) >> 1
+    return x
+
+#multiplicative inverse of a mod n
+def mult_inverse(a, n):
+    n0 = n
+    a0 = a
+    t0 = 0
+    t = 1
+    q = n0 // a0
+    r = n0 - q*a0
+    while r > 0:
+        temp = (t0 - q*t) % n
+        t0 = t
+        t = temp
+        n0 = a0
+        a0 = r
+        q = n0 // a0
+        r = n0 - q*a0
+    if a0 != 1:
+        raise Exception('No inverse!')
+    return t
+
+#returns r,s,t such that r = gcd(a,b) and sa + tb = r
+def extended_euclidian(a, b):
+    t0 = 0
+    t = 1
+    s0 = 1
+    s = 0
+    q = a // b
+    r = a - q * b
+    while r > 0:
+        temp = t0 - q * t
+        t0 = t
+        t = temp
+        temp = s0 - q*s
+        s0 = s
+        s = temp
+        a = b
+        b = r
+        q = a // b
+        r = a - q * b
+    r = b
+    return (r,s,t)
+
+#cubic root of integer
+def icbrt(a):
+    n = 0
+    while (1 << (3*(n+1)) < a):
+        n += 1
+    res = 1 << n
+    for i in range(n-1, -1, -1):
+        val = res | (1 << i)
+        if val**3 < a:
+            res = val
+    if (res + 1)**3 == a:
+        return res + 1
+    return res
+
+#computes x**y mod n. y can be negative, in which case the multiplicative inverse of x will be used.
+def pow_neg(x, y, n):
+    if y < 0:
+        x = mult_inverse(x, n)
+        y = -y
+    return pow(x, y, n)
