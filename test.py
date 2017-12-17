@@ -7,21 +7,22 @@ cipherhex = '6e19223f204b31183e333f005c122d37264a350e3e3c2808672436250b3f3d1b2e2
 cipher = hex2bytes(cipherhex)
 
 keybytes = list(set(string.printable.encode('ASCII')) - set(string.whitespace.encode('ASCII')))
+keybyte_set = set(keybytes)
 pbytes = set(string.ascii_letters.encode('ASCII') + string.digits.encode('ASCII') + b'+/')
 
+def is_valid_kbyte_pos(kbyte, pos, cipher):
+    if kbyte not in keybyte_set:
+        return False
+    pbyte = kbyte ^ cipher[pos]
+    if pos == len(cipher) - 1:
+        return pbyte == ord('\n')
+    return (
+            pbyte in pbytes or
+            (pbyte == ord('=') and (pos == len(cipher) - 3 or pos == len(cipher) - 2))
+    )
+
 def is_valid_kbyte(kbyte, pos, keylen, cipher):
-    for i in range(pos, len(cipher), keylen):
-        pbyte = kbyte ^ cipher[i]
-        if i == len(cipher) - 1:
-            if pbyte != ord('\n'):
-                return False
-            continue
-        if not (
-                pbyte in pbytes or
-                (pbyte == ord('=') and (i == len(cipher) - 3 or i == len(cipher) - 2))
-            ):
-            return False
-    return True
+    return all(is_valid_kbyte_pos(kbyte, i, cipher) for i in range(pos, len(cipher), keylen))
 
 def get_options(keylen, cipher):
     key = []
@@ -39,6 +40,51 @@ def score_text(p):
     #return average_block_hamming(p, 1)
     return freq_dist(p, FREQ_BASE64) + average_block_hamming(p, 1)
 
+len_options = {}
+for keylen in range(1,330):
+    opts = get_options(keylen, cipher)
+    if opts is not None:
+        len_options[keylen] = opts
+
+bestlens = sorted(len_options)
+#(crib, start, step)
+cribs = [(b'aW5jdGZ7', 0, 4), (b'luY3Rme', 2, 4), (b'pbmN0Zn', 3, 4)]
+
+#possible keys, where 0 bytes in key are unknown
+key_opts = []
+
+for crib, start, step in cribs:
+    print('Trying crib:', crib)
+    for ind in range(start, len(cipher)-len(crib)+1, step):
+        keypart = xor(crib, cipher[ind:])
+        if all(is_valid_kbyte_pos(keypart[i], ind+i, cipher) for i in range(len(keypart))):
+            valid = False
+            for keylen in bestlens:#len_options:
+                if ind+keylen >= len(cipher):
+                    continue
+                keypos = ind % keylen
+                if all(is_valid_kbyte(keypart[i], keypos+i, keylen, cipher) for i in range(len(keypart))):
+                    if not valid:
+                        print('Succeeded at indexes {:d}-{:d}, yielding key bytes'.format(ind, ind+len(keypart)-1), keypart)
+                        valid = True
+                    criblist = xor_crib_list(cipher, keypart, keypos, keylen)
+                    print('Valid for key length', keylen, 'resulting in the plaintext:', criblist)
+                    decoded = []
+                    for cribres in criblist:
+                        decoded.append(base642bytes(pad_base64(cribres.decode('ASCII'), start)))
+                    print('Decode results:', decoded)
+                    if all(num_printable(dec) >= 4 for dec in decoded):
+                        print('Candidate!!!!')
+                    keyopt = bytearray(b'\0'*keypos + keypart + b'\0'*(keylen - keypos - len(keypart)))
+                    lastpos = (len(cipher) - 1) % keylen
+                    keyopt[lastpos] = cipher[-1] ^ ord('\n')
+                    #print('adding key option', keyopt)
+                    key_opts.append(bytes(keyopt))
+            if valid:
+                print()
+    print('\n')
+
+"""
 for keylen in range(120, 121):
     options = get_options(keylen, cipher)
     if options is None:
@@ -52,3 +98,4 @@ for keylen in range(120, 121):
     text = base642bytes(xor_repeat(cipher, key))
     print(text)
     #print(b''.join(bytes([x]) for x in text if x in string.printable.encode('ASCII')))
+"""

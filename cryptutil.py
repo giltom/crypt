@@ -48,9 +48,35 @@ def xor_repeat(b, repeat):
         tot.append(b1 ^ b2)
     return bytes(tot)
 
+#xor the crib with the bytes, starting and the start index and skipping step bytes ahead each time
+def xor_crib(b, crib, start, step):
+    if len(crib) > step:
+        raise Exception('Crib longer than step.')
+    res = b[0:start]
+    for i in range(start, len(b), step):
+        res += xor(crib, b[i:])
+        res += b[i+len(crib): i+step]
+    return res
+
+#list of crib results
+def xor_crib_list(b, crib, start, step):
+    res = []
+    for i in range(start, len(b), step):
+        res.append(xor(crib, b[i:]))
+    return res
+
 #xor two hex strings and return hex string
 def xor_hex(hex1, hex2):
     return bytes2hex(xor(hex2bytes(hex1), hex2bytes(hex2)))
+
+#number of printable characters
+def num_printable(b):
+    s = set(string.printable.encode('ASCII'))
+    cnt = 0
+    for byte in b:
+        if byte in s:
+            cnt += 1
+    return cnt
 
 #return list of length 256 of the count of each byte in the given bytes
 def count_bytes(b):
@@ -98,6 +124,19 @@ def is_base64(b):
         return True
     except binascii.Error:
         return False
+
+#add some bytes to produce valid base64, assuming the string starts at index start
+def pad_base64(s, start=0):
+    res = 'A'*start + s
+    declen = len(res)*6
+    pad = ''
+    while (declen + 6*len(pad)) % 8 != 0:
+        pad += 'A'
+    if len(pad) == 1:
+        pad = '='
+    elif len(pad) >= 2:
+        pad = pad[:-2] + '=='
+    return res + pad
 
 #count number of non-overlapping substrings in b using the given wordlist, which should be a list of bytes
 def count_substrings(b, wordlist):
