@@ -36,9 +36,10 @@ def base642hex(s):
 
 #xor all bytes in bytes objects (result is the length of the shorter input)
 def xor(bytes1, bytes2):
-    tot = bytearray()
-    for b1,b2 in zip(bytes1, bytes2):
-        tot.append(b1 ^ b2)
+    length = min(len(bytes1), len(bytes2))
+    tot = bytearray(length)
+    for i in range(length):
+        tot[i] = bytes1[i] ^ bytes2[i]
     return bytes(tot)
 
 #xor all bytes, repeating bytes in the second argument.
