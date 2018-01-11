@@ -252,6 +252,10 @@ def average_block_hamming(b, bsize):
     tot = math.fsum(normalized_hamming_distance(b1,b2) for b1,b2 in itertools.combinations(blocks, r=2))
     return tot / npairs
 
+#normalized hamming distance between 1st two blocks
+def first_blocks_hamming(b, bsize):
+    return normalized_hamming_distance(b[0:bsize], b[bsize:2*bsize])
+
 #return pkcs#7 padded bytes
 def pkcs7_pad(b, bsize):
     padder = padding.PKCS7(bsize*8).padder()
@@ -326,6 +330,20 @@ def bitstring2bytes(s):
         b.append(int(bits, 2))
     return bytes(b)
 
+#iterate bits (1 or 0) of given bytes object, starting at the MSB of the first byte
+def bits(b):
+    pos = 7
+    for byte in b:
+        yield (byte >> pos) & 1
+        pos = (pos - 1) % 8
+
+#iterate bits (1 or 0) of given bytes object, starting at the LSB of the first byte
+def bits_lsb(b):
+    pos = 0
+    for byte in b:
+        yield (byte >> pos) & 1
+        pos = (pos + 1) % 8
+
 def lfsr_stream(nbits, start, feedback_bit, length):
     reg = start
     out = ''
@@ -350,6 +368,8 @@ def is_square(n):
 
 #integer square root (rounded down)
 def isqrt(n):
+    if n < 0:
+        raise Exception('Square root of negative integer.')
     x = n
     y = (x + 1) >> 1
     while y < x:
@@ -357,8 +377,8 @@ def isqrt(n):
         y = (x + n // x) >> 1
     return x
 
-#multiplicative inverse of a mod n
-def mult_inverse(a, n):
+#modular multiplicative inverse of a mod n
+def mod_inverse(a, n):
     n0 = n
     a0 = a
     t0 = 0
@@ -399,8 +419,57 @@ def extended_euclidian(a, b):
     r = b
     return (r,s,t)
 
+#returns continued fraction expansion of n/d
+def continued_fraction(n, d):
+    q = n // d
+    r = n % d
+    res = [q]
+    while r != 0:
+        n = d
+        d = r
+        q = n // d
+        r = n % d
+        res.append(q)
+    return res
+
+#Convergents of n/d, in the form nominator, denominator
+def convergents(n, d):
+    frac = continued_fraction(n, d)
+    c0 = 1
+    c1 = frac[0]
+    d0 = 0
+    d1 = 1
+    res = [(c1,d1)]
+    for i in range(1, len(frac)):
+        new = frac[i]*c1 + c0
+        c0 = c1
+        c1 = new
+        new = frac[i]*d1 + d0
+        d0 = d1
+        d1 = new
+        res.append((c1, d1))
+    return res
+
+#Finds RSA decryption exponent corresponding to the encryption exponent e and modulus n.
+#Only works if d < n**(1/4)/3. This is may be the case if the encryption exponent is very is large.
+#Returns d,p,q where d is the decryption exponent and p,q are the prime factors of n.
+def wieners_algorithm(n, e):
+    for t, d in convergents(e, n):
+        if t == 0:
+            continue
+        mult = d * e - 1
+        if mult % t == 0:
+            phin = mult // t
+            b = n - phin + 1
+            p = (b - isqrt(b**2 - 4*n)) // 2    #we are solving a quadratic equation
+            if n % p == 0:
+                return d, p, n // p
+    raise Exception('Could not execute wiener\'s algorithm; Could the decryption exponent be too large?')
+
 #cubic root of integer
 def icbrt(a):
+    if a < 0:
+        raise Exception('Cubic root of negative integer.')
     n = 0
     while (1 << (3*(n+1)) < a):
         n += 1
@@ -416,6 +485,18 @@ def icbrt(a):
 #computes x**y mod n. y can be negative, in which case the multiplicative inverse of x will be used.
 def pow_neg(x, y, n):
     if y < 0:
-        x = mult_inverse(x, n)
-        y = -y
+        return pow(mod_inverse(x, n), -y, n)
     return pow(x, y, n)
+
+#Attempt to factor n into two integers p*q. Only viable if p is near q.
+def fermat_factor(n):
+    a = isqrt(n)
+    if a*a == n:
+        return a,a
+    while True:
+        a += 1
+        b = a*a - n
+        if is_square(b):
+            break
+    sqrtb = isqrt(b)
+    return a - sqrtb, a + sqrtb
