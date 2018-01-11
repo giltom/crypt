@@ -450,22 +450,6 @@ def convergents(n, d):
         res.append((c1, d1))
     return res
 
-#Finds RSA decryption exponent corresponding to the encryption exponent e and modulus n.
-#Only works if d < n**(1/4)/3. This is may be the case if the encryption exponent is very is large.
-#Returns d,p,q where d is the decryption exponent and p,q are the prime factors of n.
-def wieners_algorithm(n, e):
-    for t, d in convergents(e, n):
-        if t == 0:
-            continue
-        mult = d * e - 1
-        if mult % t == 0:
-            phin = mult // t
-            b = n - phin + 1
-            p = (b - isqrt(b**2 - 4*n)) // 2    #we are solving a quadratic equation
-            if n % p == 0:
-                return d, p, n // p
-    raise Exception('Could not execute wiener\'s algorithm; Could the decryption exponent be too large?')
-
 #cubic root of integer
 def icbrt(a):
     if a < 0:
@@ -488,15 +472,4 @@ def pow_neg(x, y, n):
         return pow(mod_inverse(x, n), -y, n)
     return pow(x, y, n)
 
-#Attempt to factor n into two integers p*q. Only viable if p is near q.
-def fermat_factor(n):
-    a = isqrt(n)
-    if a*a == n:
-        return a,a
-    while True:
-        a += 1
-        b = a*a - n
-        if is_square(b):
-            break
-    sqrtb = isqrt(b)
-    return a - sqrtb, a + sqrtb
+gcd = math.gcd

@@ -126,3 +126,63 @@ def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
     for i in range(1, len(dblocks)):
         plain += xor(dblocks[i], cblocks[i-1])
     return plain
+
+#Finds RSA decryption exponent corresponding to the encryption exponent e and modulus n.
+#Only works if d < n**(1/4)/3. This is may be the case if the encryption exponent is very is large.
+#Returns d,p,q where d is the decryption exponent and p,q are the prime factors of n.
+def wieners_algorithm(n, e):
+    for t, d in convergents(e, n):
+        if t == 0:
+            continue
+        mult = d * e - 1
+        if mult % t == 0:
+            phin = mult // t
+            b = n - phin + 1
+            p = (b - isqrt(b**2 - 4*n)) // 2    #we are solving a quadratic equation
+            if n % p == 0:
+                return d, p, n // p
+    raise Exception('Could not execute wiener\'s algorithm; Could the decryption exponent be too large?')
+
+#Attempt to factor n into two integers p*q. Only viable if p is near q.
+def fermat_factor(n):
+    a = isqrt(n)
+    if a*a == n:
+        return a,a
+    while True:
+        a += 1
+        b = a*a - n
+        if is_square(b):
+            break
+    sqrtb = isqrt(b)
+    return a - sqrtb, a + sqrtb
+
+#Breaks textbook elgamal signature when the same random nonce is used twice.
+#Arguments:
+#p - prime modulus.
+#alpha, beta - elgamal public key.
+#gamma - 1st part of signature, used twice.
+#delta1, delta2 - 2nd parts of the two signatures.
+#m1, m2 - the two messages signed.
+#Returns (a,k), where a is the private key and k is the nonce used.
+def elgamal_break_two_signatures(p, alpha, beta, gamma, m1, delta1, m2, delta2):
+    if delta2 > delta1:
+        delta1, delta2 = delta2, delta1
+        m1, m2 = m2, m1
+    d = gcd(delta1 - delta2, p-1)
+    mt = (m1 - m2) // d
+    deltat = (delta1 - delta2) // d
+    pt = (p-1) // d
+    kmodpt = (mt * mod_inverse(deltat, pt)) % pt
+    for i in range(d):
+        k = (kmodpt + i*pt) % (p-1)
+        if pow(alpha, k, p) == gamma:
+            dt = gcd(gamma, p-1)
+            gammat = gamma // dt
+            ptt = (p-1) // dt
+            righthand = (m1 - k * delta1) // dt
+            amodptt = (mod_inverse(gammat, ptt) * righthand) % ptt
+            for j in range(dt):
+                a = (amodptt + i*ptt) % (p-1)
+                if pow(alpha, a, p) == beta:
+                    return a,k
+    raise Exception('Error: could not calculate elgamal private key.')
