@@ -6,6 +6,7 @@ import string
 import itertools
 import os
 import heapq
+import random
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
@@ -33,6 +34,29 @@ def base642bytes(s):
 #base64 string to hex string
 def base642hex(s):
     return bytes2hex(base642bytes(s))
+
+#Bytes to unsigned integer, big endian
+def bytes2int_big(b):
+    val = 0
+    for byte in b:
+        val = (val << 8) + byte
+    return val
+
+#Bytes to unsigned integer, little endian
+def bytes2int_little(b):
+    return bytes2int_big(reversed(b))
+
+#Integer to bytes, big endian
+def int2bytes_big(i):
+    res = b''
+    while i != 0:
+        res = bytes([i & 0xFF]) + res
+        i >>= 8
+    return res
+
+#Integer to bytes, little endian
+def int2bytes_little(i):
+    return bytes(reversed(int2bytes_big(i)))
 
 #xor all bytes in bytes objects (result is the length of the shorter input)
 def xor(bytes1, bytes2):
@@ -214,6 +238,9 @@ def count_ones(byte):
         tot += byte & 1
         byte >>= 1
     return tot
+
+#Returns random int between a and b, inclusive
+rand_int = random.randint
 
 #number of different bits (1s in the xor)
 def hamming_distance(b1, b2):
@@ -471,5 +498,55 @@ def pow_neg(x, y, n):
     if y < 0:
         return pow(mod_inverse(x, n), -y, n)
     return pow(x, y, n)
+
+#Guaranteed deterministic prime check
+def is_prime(n):
+    for q in range(2, isqrt(n) + 1):
+        if n % q == 0:
+            return False
+    return True
+
+#Returns number of consecutive zeros at the LSBs of n
+def count_trailing_zeros(n):
+    count = 0
+    while n & 1 == 0:
+        n >>= 1
+        count += 1
+    return count
+
+#Fast check if n is prime with error probability of at most 1/4. A False answer is always correct, but a True answer may be wrong.
+def miller_rabin(n):
+    nm1 = n - 1
+    k = count_trailing_zeros(nm1)
+    m = (nm1) >> k
+    a = rand_int(1, nm1)
+    b = pow(a, m, n)
+    if b == 1:
+        return True
+    for _ in range(k):
+        if b == nm1:
+            return True
+        b = pow(b, 2, n)
+    return False
+
+#Nondeterministic fast prime-checking algorithm (chance of error is 1/(4**iterations))
+def is_prime_fast(n, iterations=20):
+    for _ in range(iterations):
+        if not miller_rabin(n):
+            return False
+    return True
+
+#Very simple but inefficient prime factoring algorithms
+def prime_factors(n):
+    factors = []
+    fact = 2
+    while n > 1:
+        if n % fact == 0:
+            factors.append(fact)
+            n //= fact
+            print('new n:', n)
+        else:
+            fact += 1
+    return factors
 
 gcd = math.gcd
