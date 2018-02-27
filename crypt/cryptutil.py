@@ -1,7 +1,7 @@
 import base64
 import binascii
 import math
-from const import *
+from crypt.const import *
 import string
 import itertools
 import os

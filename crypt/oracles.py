@@ -1,4 +1,4 @@
-from cryptutil import *
+from crypt.cryptutil import *
 import random
 import os
 from collections import OrderedDict
