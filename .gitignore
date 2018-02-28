@@ -104,3 +104,5 @@ data/*
 gutenberg/*
 test/*
 gutenberg.zip
+genprimes
+solve.py
