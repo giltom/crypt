@@ -138,11 +138,13 @@ def wieners_algorithm(n, e):
         mult = d * e - 1
         if mult % t == 0:
             phin = mult // t
-            b = n - phin + 1
-            p = (b - isqrt(b**2 - 4*n)) // 2    #we are solving a quadratic equation
-            if n % p == 0:
+            delta = (n - phin + 1)**2 - 4*n
+            if delta < 0:
+                continue
+            p = (b - isqrt(delta)) // 2    #we are solving a quadratic equation
+            if 1 < p < n and n % p == 0:
                 return d, p, n // p
-    return None
+    return None, None, None
 
 #Attempt to factor n=p*q and returns a factor. Only viable if p is near q.
 def fermat_factor(n):
@@ -195,6 +197,69 @@ def pollard_pm1_incremental(n):
         res = pollard_pm1_algorithm(n, bound)
         if res:
             return res
+
+#Another attempt at factoring. Always works if p is combosite, but can take time.
+#Runs forever if p is prime.
+def pollard_rho_algorithm(n, x1=1, f=lambda x: x**2 + 1):
+    while True:
+        x = x1
+        xt = f(x) % n
+        p = gcd((x - xt) % n, n)
+        while p == 1:
+            x = f(x) % n
+            xt = f(xt) % n
+            xt = f(xt) % n
+            p = gcd((x - xt) % n, n)
+        if p != n:
+            return p
+        else:
+            x1 = (x1 + 1) % n
+
+#Tries to factor an RSA modulus by applying multiple algorithms with the given timeout (in seconds) for each algorithm.
+#e doesn't have to be given, but giving it may allow addional algorithms.
+def rsa_try_factor(n, e=None, timeout=10):
+    print('Attempting to factor n={:d}'.format(n))
+
+    print('Running Pollard Rho Algorithm...')
+    with time_limit(timeout):
+        try:
+            return pollard_rho_algorithm(n)
+        except TimeoutException:
+            print('Failed: Timeout.')
+
+    print('Running Pollard p-1 Algorithm...')
+    with time_limit(timeout):
+        try:
+            return pollard_pm1_incremental(n)
+        except TimeoutException:
+            print('Failed: Timeout.')
+
+    if e:
+        print('Running Wiener\'s Algorithm...')
+        with time_limit(timeout):
+            try:
+                _, p, __ = wieners_algorithm(n, e)
+            except TimeoutException:
+                print('Failed: Timeout.')
+            if not p:
+                print('Failed: Decryption exponent too large.')
+
+    print('Running Fermat\'s Algorithm...')
+    with time_limit(timeout):
+        try:
+            return fermat_factor(n)
+        except TimeoutException:
+            print('Failed: Timeout.')
+
+    print('Running Trial Division...')
+    with time_limit(timeout):
+        try:
+            return trial_factor_pregen(n)
+        except TimeoutException:
+            print('Failed: Timeout.')
+
+    print('Failed to factor n.')
+    return None
 
 #Breaks textbook elgamal signature when the same random nonce is used twice.
 #Arguments:
