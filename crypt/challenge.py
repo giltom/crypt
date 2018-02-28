@@ -130,6 +130,7 @@ def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
 #Finds RSA decryption exponent corresponding to the encryption exponent e and modulus n.
 #Only works if d < n**(1/4)/3. This is may be the case if the encryption exponent is very is large.
 #Returns d,p,q where d is the decryption exponent and p,q are the prime factors of n.
+#Returns None on a failure.
 def wieners_algorithm(n, e):
     for t, d in convergents(e, n):
         if t == 0:
@@ -141,9 +142,9 @@ def wieners_algorithm(n, e):
             p = (b - isqrt(b**2 - 4*n)) // 2    #we are solving a quadratic equation
             if n % p == 0:
                 return d, p, n // p
-    raise Exception('Could not execute wiener\'s algorithm; Could the decryption exponent be too large?')
+    return None
 
-#Attempt to factor n into two integers p*q. Only viable if p is near q.
+#Attempt to factor n=p*q and returns a factor. Only viable if p is near q.
 def fermat_factor(n):
     a = isqrt(n)
     if a*a == n:
@@ -153,12 +154,47 @@ def fermat_factor(n):
         b = a*a - n
         if is_square(b):
             break
-    sqrtb = isqrt(b)
-    return a - sqrtb, a + sqrtb
+    return a - isqrt(b)
 
 #Trial division factoring. Returns a factor of n or None if n is prime.
 def trial_factor(n):
-    sqn = isqrt(n)
+    if n % 2 == 0:
+        return 2
+    for fact in range(3, isqrt(n) + 1, 2):
+        if n % fact == 0:
+            return fact
+    return None
+
+#Try to find a prime factor using a list of pregenerated primes, falling back to counting if all primes are used up
+def trial_factor_pregen(n):
+    if n % 2 == 0:
+        return 2
+    for p in possible_pregen_factors(n):
+        if n % p == 0:
+            return p
+    return None
+
+#Tries to compute a prime factor p of n, given that the prime factors of p-1 are less/equal to bound.
+#Time increases with bound. Good if p-1 has small prime factors.
+#Returns None on a failure.
+def pollard_pm1_algorithm(n, bound):
+    if n % 2 == 0:
+        return 2
+    a = 2
+    for j in range(2, bound + 1):
+        a = pow(a, j, n)    #a = 2^(bound!)
+    d = gcd(a - 1, n)
+    if 1 < d < n:
+        return d
+    return None
+
+#Calls pollard p-1 algorithm with increasing bound until successful.
+#Good if for the prime factor p, p-1 has only small prime factors.
+def pollard_pm1_incremental(n):
+    for bound in possible_pregen_factors(n):
+        res = pollard_pm1_algorithm(n, bound)
+        if res:
+            return res
 
 #Breaks textbook elgamal signature when the same random nonce is used twice.
 #Arguments:
@@ -189,4 +225,4 @@ def elgamal_break_two_signatures(p, alpha, beta, gamma, m1, delta1, m2, delta2):
                 a = (amodptt + i*ptt) % (p-1)
                 if pow(alpha, a, p) == beta:
                     return a,k
-    raise Exception('Error: could not calculate elgamal private key.')
+    raise CryptoException('Error: could not calculate elgamal private key.')

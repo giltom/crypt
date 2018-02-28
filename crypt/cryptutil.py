@@ -7,9 +7,14 @@ import itertools
 import os
 import heapq
 import random
+from contextlib import contextmanager
+import signal
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
+
+class CryptoException(Exception):
+    pass
 
 #hex string to bytes
 def hex2bytes(hexstr):
@@ -76,7 +81,7 @@ def xor_repeat(b, repeat):
 #xor the crib with the bytes, starting and the start index and skipping step bytes ahead each time
 def xor_crib(b, crib, start, step):
     if len(crib) > step:
-        raise Exception('Crib longer than step.')
+        raise CryptoException('Crib longer than step.')
     res = b[0:start]
     for i in range(start, len(b), step):
         res += xor(crib, b[i:])
@@ -396,7 +401,7 @@ def is_square(n):
 #integer square root (rounded down)
 def isqrt(n):
     if n < 0:
-        raise Exception('Square root of negative integer.')
+        raise CryptoException('Square root of negative integer.')
     x = n
     y = (x + 1) >> 1
     while y < x:
@@ -421,7 +426,7 @@ def mod_inverse(a, n):
         q = n0 // a0
         r = n0 - q*a0
     if a0 != 1:
-        raise Exception('No inverse!')
+        raise CryptoException('No inverse!')
     return t
 
 #returns r,s,t such that r = gcd(a,b) and sa + tb = r
@@ -480,7 +485,7 @@ def convergents(n, d):
 #cubic root of integer
 def icbrt(a):
     if a < 0:
-        raise Exception('Cubic root of negative integer.')
+        raise CryptoException('Cubic root of negative integer.')
     n = 0
     while (1 << (3*(n+1)) < a):
         n += 1
@@ -530,7 +535,7 @@ def miller_rabin(n):
     return False
 
 #Nondeterministic fast prime-checking algorithm (chance of error is 1/(4**iterations))
-def is_prime_fast(n, iterations=20):
+def is_prime_fast(n, iterations=30):
     for _ in range(iterations):
         if not miller_rabin(n):
             return False
@@ -553,27 +558,78 @@ def prime_factors(n):
 
 #Generator of a list of pregenerated orimes up to some number (currently 1 billion)
 def pregen_primes():
-    fp = open(PRIMES_FNAME, 'rb')
-    num = 0
-    offset = 0
-    while True:
-        b = fp.read(1)
-        if len(b) == 0:
-            close(fp)
-            return
-        c = b[0]
-        if c == 0:
-            yield num
-            num = 0
-            offset = 0
-        else:
-            num |= c << offset
-            offset += 8
-
-def pregen_primes_alt():
-    fp = open('crypt/primes.txt', 'r')
+    fp = open(PRIMES_FNAME, 'r')
     for line in fp:
         yield int(line, 16)
-    close(fp)
+    fp.close()
+
+def max_pregen_prime():
+    if max_pregen_prime.maxprime:
+        return max_pregen_prime.maxprime
+    fp = open(PRIMES_FNAME, 'rb')
+    pos = -2
+    while True:
+        fp.seek(pos, 2)
+        if fp.read(1) == b'\n':
+            break
+        pos -= 1
+    fp.seek(pos, 2)
+    b = fp.read(-pos)
+    fp.close()
+    max_pregen_prime.maxprime = int(b, 16)  #cache the result for later
+    return max_pregen_prime.maxprime
+max_pregen_prime.maxprime = None
+
+#Generates pregenerated primes up to sqrt(n) if it is smaller/equal to max_pregen_prime(n),
+#or all pregen primes followed by all odd numbers between max_pregen_prime() and sqrt(n) otherwise.
+def possible_pregen_factors(n):
+    sqn = isqrt(n)
+    if max_pregen_prime() >= sqn:
+        return itertools.takewhile(lambda p: p <= sqn, pregen_primes())
+    else:
+        return itertools.chain(pregen_primes(), range(max_pregen_prime()+2, sqn+1, 2))
+
+def rsa_encrypt(p, e, n):
+    return pow(p, e, n)
+
+def rsa_decrypt(c, d, n):
+    return pow(c, d, n)
+
+#generates a random number with the given number of bits. Do not use for real crypto.
+#the MSB is always 1, so there are actually 2^(nbits-1) bits of randomness.
+def gen_random_num(nbits):
+    nrand = nbits - 1
+    randbytes = os.urandom(nrand // 8)
+    lastbyte = os.urandom(1)[0]
+    mask = 0
+    for i in range(0, nrand % 8):
+        mask |= 1 << i
+    lastbit = 1 << (nbits - 1)
+    return bytes2int_big(bytes([lastbyte & mask]) + randbytes) | lastbit
+
+#generates a random prime number with the given number of bits. Do not use for real crypto.
+#iterations is the number of iterations for primality testing
+def gen_random_prime(nbits, iterations=30):
+    while True:
+        n = gen_random_num(nbits)
+        if is_prime_fast(n, iterations):
+            return n
+
+class TimeoutException(Exception):
+    pass
+
+#Context manager that limits the execution time of the statements, raising TimeoutException if time runs out.
+#Note that this uses SIGALRM.
+@contextmanager
+def time_limit(seconds):
+    def sigalrm_handler(signum, frame):
+        raise TimeoutException('Timed out!')
+    old_handler = signal.signal(signal.SIGALRM, sigalrm_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 gcd = math.gcd
