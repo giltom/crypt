@@ -18,3 +18,5 @@ BACKEND = default_backend()
 ECB_MODE = modes.ECB()
 
 ZERO_16 = b'\x00'*16
+
+PRIMES_FNAME = 'crypt/primes'

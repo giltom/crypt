@@ -156,6 +156,10 @@ def fermat_factor(n):
     sqrtb = isqrt(b)
     return a - sqrtb, a + sqrtb
 
+#Trial division factoring. Returns a factor of n or None if n is prime.
+def trial_factor(n):
+    sqn = isqrt(n)
+
 #Breaks textbook elgamal signature when the same random nonce is used twice.
 #Arguments:
 #p - prime modulus.

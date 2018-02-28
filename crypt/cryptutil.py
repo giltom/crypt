@@ -539,14 +539,41 @@ def is_prime_fast(n, iterations=20):
 #Very simple but inefficient prime factoring algorithms
 def prime_factors(n):
     factors = []
-    fact = 2
+    while (n % 2 == 0):
+        factors.append(2)
+        n //= 2
+    fact = 3
     while n > 1:
         if n % fact == 0:
             factors.append(fact)
             n //= fact
-            print('new n:', n)
         else:
-            fact += 1
+            fact += 2
     return factors
+
+#Generator of a list of pregenerated orimes up to some number (currently 1 billion)
+def pregen_primes():
+    fp = open(PRIMES_FNAME, 'rb')
+    num = 0
+    offset = 0
+    while True:
+        b = fp.read(1)
+        if len(b) == 0:
+            close(fp)
+            return
+        c = b[0]
+        if c == 0:
+            yield num
+            num = 0
+            offset = 0
+        else:
+            num |= c << offset
+            offset += 8
+
+def pregen_primes_alt():
+    fp = open('crypt/primes.txt', 'r')
+    for line in fp:
+        yield int(line, 16)
+    close(fp)
 
 gcd = math.gcd

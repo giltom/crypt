@@ -16,17 +16,9 @@ unsigned long isqrt(unsigned long n){
     return x;
 }
 
-void write_bin_num(FILE* fp, unsigned long n){
-	while (n){
-		fputc(n & 0xFF, fp);
-		n >>= 8;
-	}
-	fputc(0, fp);
-}
-
 int main(int argc, char* argv[]){
-	if (argc != 4){
-		printf("Usage: %s <max-number> <output-filename> {t,b}\n", argv[0]);
+	if (argc != 3){
+		printf("Usage: %s <max-number> <output-filename>\n", argv[0]);
 		return 1;
 	}
 
@@ -42,18 +34,10 @@ int main(int argc, char* argv[]){
 			for (unsigned long j = i*i; j <= n; j += i)
 				UNSET_BIT(bmp, j);
 
-	FILE* fp;
-	if (argv[3][0] == 't')
-		fp = fopen(argv[2], "w");
-	else
-		fp = fopen(argv[2], "wb");
+	FILE* fp = fopen(argv[2], "w");;
 	for (unsigned long i = 2; i <= n; i++)
-		if (BIT_IS_SET(bmp, i)){
-			if (argv[3][0] == 't')
-				fprintf(fp, "%lX\n", i);
-			else
-				write_bin_num(fp, i);
-		}
+		if (BIT_IS_SET(bmp, i))
+			fprintf(fp, "%lX\n", i);
 
 	fclose(fp);
 	free(bmp);
