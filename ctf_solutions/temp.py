@@ -47,9 +47,32 @@ def get_1st_byte():	#it's 26 = 0x1A = 00011010
 				print('Success!')
 				return bits2bytes(bits)[0]
 
-#message = aes_decrypt(cipher[16:], aes_key, modes.CFB8(cipher[:16]))
-#print(message)
+"""
+test_enc_key = [1]*128
+keybits = []
+for val in [int(line) for line in open('data/key.enc')]:
+	test_enc_key[0] = val
+	if is_empty_response(test_enc_key):
+		keybits.append(0)
+		print('got 0')
+	else:
+		keybits.append(1)
+		print('got 1')
+key = bits2bytes(keybits)
+print(key)
+"""
+key = b'\x1a\xcc\xff\x17\x9b\xac\xec,\x95g\xdb\xeb\xe4C\xce '
+"""
+cipher = send_key([int(line) for line in open('data/key.enc')])
+message = aes_decrypt(cipher[16:], key, modes.CFB8(cipher[:16]))
+print(message)
+"""
+ciphertext = open('data/flag.enc', 'rb').read()
+flag = aes_decrypt(ciphertext[16:], key, modes.CFB8(ciphertext[:16]))
+fout = open('data/output', 'wb')
+fout.write(flag)
+fout.close()
 
-#enc_aes_key = [int(line) for line in open('data/key.enc')]
+#enc_aes_key =
 
 #print()
