@@ -138,7 +138,8 @@ def wieners_algorithm(n, e):
         mult = d * e - 1
         if mult % t == 0:
             phin = mult // t
-            delta = (n - phin + 1)**2 - 4*n
+            b = n - phin + 1
+            delta = b**2 - 4*n
             if delta < 0:
                 continue
             p = (b - isqrt(delta)) // 2    #we are solving a quadratic equation
