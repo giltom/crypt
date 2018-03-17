@@ -13,7 +13,8 @@ def break_single_char_xor(b):
 #break repeating key xor ("vigenere cipher") with frequency analysis
 def break_repeating_xor(b, n=1000):
     res = []
-    keylens = heapq.nsmallest(n, range(1,len(b)//2), key=lambda i: average_block_hamming(b, i))
+    keylens = heapq.nsmallest(n, range(1,len(b)//2), key=lambda i: first_blocks_hamming(b, i))
+    print(keylens)
     for keylen in keylens:
         print(keylen)
         key = b''

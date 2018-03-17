@@ -1,21 +1,18 @@
-import os
-import re
+from crypt import *
 
-#search = re.compile(r'\*\*\* ?END')
-#search = re.compile(r'\*\*\*\s*START[^\n*]*\*\*\*\n')
-#search = re.compile(r'^Produced by[\w ]*\n')
-search = re.compile(r'\nEnd of .+$')
+from pwn import *
 
-tot = len(os.listdir('gutenberg'))
-cnt = 0
-for fname in os.listdir('gutenberg'):
-	path = os.path.join('gutenberg',fname)
-	f = open(path, encoding='iso8859-1', mode='r')
-	text = f.read()
-	f.close()
-	f = open(path, encoding='UTF-8', mode='w')
-	f.write(text)
-	f.close()
-	cnt += 1
-	if cnt % 50 == 0:
-		print('{:.02%} complete.'.format(cnt/tot))
+import socket
+
+f = open('data/pk')
+n = int(f.readline())
+x = int(f.readline())
+aes_key = b'\0'*16
+enc_aes_key = gm_encrypt(aes_key, x, n)
+
+sock = socket.create_connection(('web.angstromctf.com', 3000))
+
+
+for val in enc_aes_key:
+	sock.sendall(str(val).encode('UTF-8'))
+print(sock.recv(4098))

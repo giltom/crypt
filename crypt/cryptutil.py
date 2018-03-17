@@ -362,6 +362,13 @@ def bitstring2bytes(s):
         b.append(int(bits, 2))
     return bytes(b)
 
+#returns list of integer bits
+def bytes2bits(b):
+    return [int(c) for c in bytes2bitstring(b)]
+
+def bits2bytes(bits):
+    return bitstring2bytes(''.join(str(bit) for bit in bits))
+
 #iterate bits (1 or 0) of given bytes object, starting at the MSB of the first byte
 def bits(b):
     pos = 7
@@ -631,5 +638,41 @@ def time_limit(seconds):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
+
+#legendre symbol (a/p), assuming that p is prime
+def legendre(a, p):
+    return pow(a, (p-1)//2, p)
+
+#jacobi symbol (a/(factors[0]*factors[1]*...)) assuming all factors are prime
+def jacobi(a, *factors):
+    res = 1
+    for fact in factors:
+        res *= legendre(a, fact)
+    return res
+
+#true if a is a quad residue mod p, assuming that it is prime
+def is_quad_residue(a, p):
+    return legendre(a, p) == 1
+
+#goldwasser-micali encryption. input is bytes and output is a list of integers.
+def gm_encrypt(p, x, n):
+    rand = random.SystemRandom()
+    res = []
+    for bit in bytes2bits(p):
+        y = rand.randrange(n)
+        while gcd(y, n) != 1:
+            y = rand.randrange(n)
+        res.append((y**2 * x**bit) % n)
+    return res
+
+#goldwasser-micali decryption. input is a list of integers and output is bytes.
+def gm_decrypt(c, p, q):
+    bits = []
+    for val in c:
+        if is_quad_residue(val % p, p) and is_quad_residue(val % q, q):
+            bits.append(0)
+        else:
+            bits.append(1)
+    return bits2bytes(bits)
 
 gcd = math.gcd
