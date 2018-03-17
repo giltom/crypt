@@ -335,6 +335,12 @@ def aes_encrypt_cbc(plaintext, key, iv, pad=pkcs7_pad_16):
 def aes_decrypt_cbc(ciphertext, key, iv, unpad=pkcs7_unpad_16):
     return aes_decrypt(ciphertext, key, modes.CBC(iv), unpad=unpad)
 
+def aes_encrypt_cfb(plaintext, key, iv):
+    return aes_encrypt(plaintext, key, modes.CFB(iv))
+
+def aes_decrypt_cfb(ciphertext, key, iv):
+    return aes_decrypt(ciphertext, key, modes.CFB(iv))
+
 #check if a block repeats itself
 def has_repeated_block(b, bsize):
     blocks = get_blocks(b, bsize)
@@ -641,7 +647,12 @@ def time_limit(seconds):
 
 #legendre symbol (a/p), assuming that p is prime
 def legendre(a, p):
-    return pow(a, (p-1)//2, p)
+    res = pow(a, (p-1)//2, p)
+    if res == 0 or res == 1:
+        return res
+    if res == p - 1:
+        return -1
+    raise CryptoException("Error computing legendre")
 
 #jacobi symbol (a/(factors[0]*factors[1]*...)) assuming all factors are prime
 def jacobi(a, *factors):
@@ -674,5 +685,16 @@ def gm_decrypt(c, p, q):
         else:
             bits.append(1)
     return bits2bytes(bits)
+
+#generate goldwasser-micali key as x,n,p,q
+def gm_keygen(nbits):
+    p = gen_random_prime(nbits//2)
+    q = gen_random_prime(nbits//2)
+    n = p*q
+    rand = random.SystemRandom()
+    x = rand.randrange(n)
+    while legendre(x, p) != -1 or legendre(x, q) != -1:
+        x = rand.randrange(n)
+    return x, n, p, q
 
 gcd = math.gcd
