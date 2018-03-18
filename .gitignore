@@ -102,7 +102,9 @@ ENV/
 
 data/*
 gutenberg/*
+scripts/gutenberg/*
 test/*
+test*.py
 gutenberg.zip
 genprimes
 solve.py
