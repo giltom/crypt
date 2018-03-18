@@ -132,7 +132,9 @@ def pow_neg(x, y, n):
 
 #Guaranteed deterministic prime check (slow)
 def is_prime(n):
-    for q in range(2, isqrt(n) + 1):
+    if n % 2 == 0:
+        return False
+    for q in range(3, isqrt(n) + 1, 2):
         if n % q == 0:
             return False
     return True
