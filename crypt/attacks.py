@@ -1,19 +1,22 @@
-from crypt.cryptutil import *
-from crypt.oracles import *
-from crypt.const import *
 import os
 import itertools
 import heapq
 import string
 
+from crypt import util
+from crypt import const
+from crypt import byte
+from crypt import encodings as enc
+from crypt import numbers as num
+
 #returns key,plaintext or None
 def break_single_char_xor(b):
-    return rank_best(b, keys, lambda c,k: xor_repeat(c, bytes([k])), nonws_freq_score, filt=is_base64)
+    return rank_best(b, keys, lambda c,k: byte.xor_repeat(c, bytes([k])), byte.nonws_freq_score, filt=enc.is_base64)
 
 #break repeating key xor ("vigenere cipher") with frequency analysis
 def break_repeating_xor(b, n=1000):
     res = []
-    keylens = heapq.nsmallest(n, range(1,len(b)//2), key=lambda i: first_blocks_hamming(b, i))
+    keylens = heapq.nsmallest(n, range(1,len(b)//2), key=lambda i: byte.first_blocks_hamming(b, i))
     print(keylens)
     for keylen in keylens:
         print(keylen)
@@ -25,11 +28,11 @@ def break_repeating_xor(b, n=1000):
             if char is None:
                 notfound = True
                 break
-            byte = char[0]
-            key += bytes([byte])
+            bt = char[0]
+            key += bytes([bt])
         if notfound:
             continue
-        res.append((key, xor_repeat(b, key)))
+        res.append((key, byte.xor_repeat(b, key)))
     return res
 
 #oracle should accept a plaintext and encrypt it however it wants. it can add a prefix and suffix.
@@ -38,7 +41,7 @@ def is_ecb_mode(bsize, oracle):
     nblocks = random.randint(100,200)
     block = os.urandom(bsize)
     cipher = oracle(block * (nblocks+1))
-    blocks = get_blocks(cipher, bsize)
+    blocks = byte.get_blocks(cipher, bsize)
     #check if there is a sequence of N_BLOCKS (+1) consecutive equal blocks
     i = 0
     while i < len(blocks):
@@ -87,10 +90,10 @@ def break_ecb_insert(oracle):
         for i in range(bsize):  #find the ith character in the block
             text = prefix + b'a'*(bsize - i - 1)
             actual = oracle(text)[bstart:bstart + bsize]
-            for byte in range(256):
-                cipher = oracle(text + res + bytes([byte]))[bstart:bstart + bsize]
+            for bt in range(256):
+                cipher = oracle(text + res + bytes([bt]))[bstart:bstart + bsize]
                 if cipher == actual:
-                    res += bytes([byte])
+                    res += bytes([bt])
                     break
     return res
 
@@ -100,7 +103,7 @@ def break_ecb_insert(oracle):
 #However the IV is needed to decrypt the first block (other blocks will be correct even if the IV is wrong).
 def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
     dblocks = []    #raw decrypted blocks before they are XORed with each other
-    cblocks = get_blocks(ciphertext, bsize) #ciphertext blocks
+    cblocks = byte.get_blocks(ciphertext, bsize) #ciphertext blocks
     for cblock in cblocks:   #current ciphertext block being decrypted
         text = bytearray(bsize) + cblock  #two blocks that we control and repeatedly change and send the oracle
         byteind = bsize - 1     #index in block of byte being decrypted
@@ -123,9 +126,9 @@ def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
         dblocks.append(bytes(text[0:bsize]))
     #We now have the decrypted ciphertext blocks, before they are xored with each other (as if decrypted in ECB mode)
     #all that's left is to simulate CBC mode and get the real plaintext
-    plain = xor(dblocks[0], iv)
+    plain = byte.xor(dblocks[0], iv)
     for i in range(1, len(dblocks)):
-        plain += xor(dblocks[i], cblocks[i-1])
+        plain += byte.xor(dblocks[i], cblocks[i-1])
     return plain
 
 #Finds RSA decryption exponent corresponding to the encryption exponent e and modulus n.
@@ -133,7 +136,7 @@ def pkcs7_padding_oracle_attack(oracle, bsize, ciphertext, iv):
 #Returns d,p,q where d is the decryption exponent and p,q are the prime factors of n.
 #Returns None on a failure.
 def wieners_algorithm(n, e):
-    for t, d in convergents(e, n):
+    for t, d in num.convergents(e, n):
         if t == 0:
             continue
         mult = d * e - 1
@@ -143,79 +146,10 @@ def wieners_algorithm(n, e):
             delta = b**2 - 4*n
             if delta < 0:
                 continue
-            p = (b - isqrt(delta)) // 2    #we are solving a quadratic equation
+            p = (b - num.isqrt(delta)) // 2    #we are solving a quadratic equation
             if 1 < p < n and n % p == 0:
                 return d, p, n // p
     return None, None, None
-
-#Attempt to factor n=p*q and returns a factor. Only viable if p is near q.
-def fermat_factor(n):
-    a = isqrt(n)
-    if a*a == n:
-        return a,a
-    while True:
-        a += 1
-        b = a*a - n
-        if is_square(b):
-            break
-    return a - isqrt(b)
-
-#Trial division factoring. Returns a factor of n or None if n is prime.
-def trial_factor(n):
-    if n % 2 == 0:
-        return 2
-    for fact in range(3, isqrt(n) + 1, 2):
-        if n % fact == 0:
-            return fact
-    return None
-
-#Try to find a prime factor using a list of pregenerated primes, falling back to counting if all primes are used up
-def trial_factor_pregen(n):
-    if n % 2 == 0:
-        return 2
-    for p in possible_pregen_factors(n):
-        if n % p == 0:
-            return p
-    return None
-
-#Tries to compute a prime factor p of n, given that the prime factors of p-1 are less/equal to bound.
-#Time increases with bound. Good if p-1 has small prime factors.
-#Returns None on a failure.
-def pollard_pm1_algorithm(n, bound):
-    if n % 2 == 0:
-        return 2
-    a = 2
-    for j in range(2, bound + 1):
-        a = pow(a, j, n)    #a = 2^(bound!)
-    d = gcd(a - 1, n)
-    if 1 < d < n:
-        return d
-    return None
-
-#Calls pollard p-1 algorithm with increasing bound until successful.
-#Good if for the prime factor p, p-1 has only small prime factors.
-def pollard_pm1_incremental(n):
-    for bound in possible_pregen_factors(n):
-        res = pollard_pm1_algorithm(n, bound)
-        if res:
-            return res
-
-#Another attempt at factoring. Always works if p is combosite, but can take time.
-#Runs forever if p is prime.
-def pollard_rho_algorithm(n, x1=1, f=lambda x: x**2 + 1):
-    while True:
-        x = x1
-        xt = f(x) % n
-        p = gcd((x - xt) % n, n)
-        while p == 1:
-            x = f(x) % n
-            xt = f(xt) % n
-            xt = f(xt) % n
-            p = gcd((x - xt) % n, n)
-        if p != n:
-            return p
-        else:
-            x1 = (x1 + 1) % n
 
 #Tries to factor an RSA modulus by applying multiple algorithms with the given timeout (in seconds) for each algorithm.
 #e doesn't have to be given, but giving it may allow addional algorithms.
@@ -223,41 +157,41 @@ def rsa_try_factor(n, e=None, timeout=10):
     print('Attempting to factor n={:d}'.format(n))
 
     print('Running Pollard Rho Algorithm...')
-    with time_limit(timeout):
+    with util.time_limit(timeout):
         try:
-            return pollard_rho_algorithm(n)
-        except TimeoutException:
+            return num.pollard_rho_algorithm(n)
+        except util.TimeoutException:
             print('Failed: Timeout.')
 
     print('Running Pollard p-1 Algorithm...')
-    with time_limit(timeout):
+    with util.time_limit(timeout):
         try:
-            return pollard_pm1_incremental(n)
-        except TimeoutException:
+            return num.pollard_pm1_incremental(n)
+        except util.TimeoutException:
             print('Failed: Timeout.')
 
     if e:
         print('Running Wiener\'s Algorithm...')
-        with time_limit(timeout):
+        with util.time_limit(timeout):
             try:
                 _, p, __ = wieners_algorithm(n, e)
-            except TimeoutException:
+            except util.TimeoutException:
                 print('Failed: Timeout.')
             if not p:
                 print('Failed: Decryption exponent too large.')
 
     print('Running Fermat\'s Algorithm...')
-    with time_limit(timeout):
+    with util.time_limit(timeout):
         try:
-            return fermat_factor(n)
-        except TimeoutException:
+            return num.fermat_factor(n)
+        except util.TimeoutException:
             print('Failed: Timeout.')
 
     print('Running Trial Division...')
-    with time_limit(timeout):
+    with util.time_limit(timeout):
         try:
-            return trial_factor_pregen(n)
-        except TimeoutException:
+            return num.trial_factor_pregen(n)
+        except util.TimeoutException:
             print('Failed: Timeout.')
 
     print('Failed to factor n.')
@@ -275,21 +209,21 @@ def elgamal_break_two_signatures(p, alpha, beta, gamma, m1, delta1, m2, delta2):
     if delta2 > delta1:
         delta1, delta2 = delta2, delta1
         m1, m2 = m2, m1
-    d = gcd(delta1 - delta2, p-1)
+    d = num.gcd(delta1 - delta2, p-1)
     mt = (m1 - m2) // d
     deltat = (delta1 - delta2) // d
     pt = (p-1) // d
-    kmodpt = (mt * mod_inverse(deltat, pt)) % pt
+    kmodpt = (mt * num.mod_inverse(deltat, pt)) % pt
     for i in range(d):
         k = (kmodpt + i*pt) % (p-1)
         if pow(alpha, k, p) == gamma:
-            dt = gcd(gamma, p-1)
+            dt = num.gcd(gamma, p-1)
             gammat = gamma // dt
             ptt = (p-1) // dt
             righthand = (m1 - k * delta1) // dt
-            amodptt = (mod_inverse(gammat, ptt) * righthand) % ptt
+            amodptt = (num.mod_inverse(gammat, ptt) * righthand) % ptt
             for j in range(dt):
                 a = (amodptt + i*ptt) % (p-1)
                 if pow(alpha, a, p) == beta:
                     return a,k
-    raise CryptoException('Error: could not calculate elgamal private key.')
+    raise util.CryptoException('Error: could not calculate elgamal private key.')

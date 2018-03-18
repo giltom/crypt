@@ -1,17 +1,19 @@
-import crypt
 import string
 import itertools
+
+from crypt import util
+from crypt import numbers as num
 
 #single character to value mod 26
 def char2lval(c, aval=0):
     if c not in string.ascii_letters:
-        raise crypt.CryptoException("Character " + c + " is not a letter.")
+        raise util.CryptoException("Character " + c + " is not a letter.")
     return ord(c.lower()) - ord('a') + aval
 
 #value mod 26 to character
 def lval2char(val, aval=0, upper=True):
     if val < aval or val >= aval + 26:
-        raise crypt.CryptoException("Bad letter value " + val)
+        raise util.CryptoException("Bad letter value " + val)
     if upper:
         return chr(ord('A') + val - aval)
     else:
@@ -78,7 +80,7 @@ def affine_encrypt(s, a, b):
 def affine_decrypt(s, a, b):
     lvals = str2lvals(s)
     lvals = lvals_sub_const(lvals, b)
-    lvals = lvals_mult_const(lvals, crypt.mod_inverse(a, 26))
+    lvals = lvals_mult_const(lvals, num.mod_inverse(a, 26))
     return lvals2str(lvals)
 
 #rotation cipher, a.k.a shift cipher, caesar cipher
@@ -124,15 +126,15 @@ def vigenere_decrypt(s, key):
 #returns the key (a,b) for an affine cipher that maps p to c
 def break_affine(p, c):
     if len(p) != len(c):
-        raise crypt.CryptoException('Cipher and plaintext have different lengths')
+        raise util.CryptoException('Cipher and plaintext have different lengths')
     for i,j in itertools.combinations(range(len(p)), 2):
         p1 = char2lval(p[i])
         p2 = char2lval(p[j])
         c1 = char2lval(c[i])
         c2 = char2lval(c[j])
         try:
-            inv = crypt.mod_inverse((p1 - p2) % 26, 26)
-        except crypt.CryptoException:
+            inv = num.mod_inverse((p1 - p2) % 26, 26)
+        except util.CryptoException:
             continue
         a = (((c1 - c2) % 26) * inv) % 26
         b = (c1 - a*p1) % 26
