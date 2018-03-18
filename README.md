@@ -1,6 +1,4 @@
 # crypt
-What you are looking for is the python library in the directory `crypt`. The directories `scripts` and `ctf_solutions` include various scripts vaguely related to cryptography and most probably don't make sense. You shouldn't need them.
-
 This runs on Python 3 and **requires** the `cryptography` library, which can be installed with pip.
 
 You can simply type `from crypt import *` to get everything (except the `oracles`) module into the global namespace. Alternatively, you can import only some of the modules. The current modules are:
