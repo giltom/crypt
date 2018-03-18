@@ -40,13 +40,13 @@ def int2bytes_big(i):
 def int2bytes_little(i):
     return bytes(reversed(int2bytes_big(i)))
 
-def bytes2bitstring(b):
+def bytes2bin(b):
     s = ''
     for byte in b:
         s += '{:08b}'.format(byte)
     return s
 
-def bitstring2bytes(s):
+def bin2bytes(s):
     b = []
     for start in range(0, len(s), 8):
         bits = s[start:start+8]
@@ -55,10 +55,10 @@ def bitstring2bytes(s):
 
 #returns list of integer bits
 def bytes2bits(b):
-    return [int(c) for c in bytes2bitstring(b)]
+    return [int(c) for c in bytes2bin(b)]
 
 def bits2bytes(bits):
-    return bitstring2bytes(''.join(str(bit) for bit in bits))
+    return bin2bytes(''.join(str(bit) for bit in bits))
 
 def is_base64(b):
     try:
@@ -79,3 +79,32 @@ def pad_base64(s, start=0):
     elif len(pad) >= 2:
         pad = pad[:-2] + '=='
     return res + pad
+
+#maps an encoding name to a 2-tuple (frombytes, tobytes) of conversion functions
+ENCODING_MAP = {
+    'bytes' : (lambda x: x, lambda x: x),                   #bytes object
+    'hex' : (bytes2hex, hex2bytes),                         #hexadecimal string
+    'base64' : (bytes2base64, base642bytes),                #base64
+    'int_big' : (bytes2int_big, int2bytes_big),             #integer, big endian conversion
+    'int_little' : (bytes2int_little, int2bytes_little),    #integer, little endian conversion
+    'int' : (bytes2int_big, int2bytes_big),                 #same as int_big
+    'bin' : (bytes2bin, bin2bytes),                         #binary string
+    'bits' : (bytes2bits, bits2bytes)                       #list of bits (the integers 0 and 1)
+}
+
+class Converter:
+    #create a callable object that converts from encfrom to encto
+    def __init__(self, encfrom, encto):
+        self.encfrom = encfrom.strip().lower()
+        self.encto = encto.strip().lower()
+        if self.encfrom not in ENCODING_MAP or self.encto not in ENCODING_MAP:
+            raise util.CryptoException("Bad encoding name")
+        self.tobytes = ENCODING_MAP[self.encfrom][1]
+        self.bytesto = ENCODING_MAP[self.encto][0]
+
+    def __call__(self, val):
+        return self.bytesto(self.tobytes(val))
+
+#convert val from the format encfrom to the format encto (as strings)
+def convert(val, encfrom, encto):
+    return Converter(encfrom, encto)(val)
