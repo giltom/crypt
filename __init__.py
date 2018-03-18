@@ -8,5 +8,6 @@ from crypt.numbers import *
 from crypt.padders import *
 from crypt.symmetric import *
 from crypt.util import *
+from crypt.hashfunc import *
 
 from crypt import oracles

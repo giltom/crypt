@@ -199,3 +199,15 @@ def replace_all(b, d):
     for key in d:
         b = b.replace(key, d[key])
     return b
+
+#adds null bytes to the start of b to that it is n bytes long
+def nullfill(b, n):
+    if len(b) >= n:
+        return b
+    return (n - len(b))*b'\0' + b
+
+#same, but add to the end of b
+def nullfill_r(b, n):
+    if len(b) >= n:
+        return b
+    return b + (n - len(b))*b'\0'

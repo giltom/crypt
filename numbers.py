@@ -325,3 +325,15 @@ def pollard_rho_algorithm(n, x1=1, f=lambda x: x**2 + 1):
             return p
         else:
             x1 = (x1 + 1) % n
+
+#rotate the size-bits unsigned integer i amt bits to the left
+def lrotate(i, amt, size):
+    amt = amt % size
+    mask = ~-(1 << size)
+    return ((i << amt) + (i >> (size - amt))) & mask
+
+#rotate the size-bits unsigned integer i amt bits to the right
+def rrotate(i, amt, size):
+    amt = amt % size
+    mask = ~-(1 << size)
+    return ((i >> amt) + (i << (size - amt))) & mask
