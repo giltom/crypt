@@ -1,7 +1,10 @@
 import random
 
+from cryptography.hazmat.primitives import serialization
+
 from crypt import numbers as num
 from crypt import encodings as enc
+from crypt import const
 
 def rsa_encrypt(p, e, n):
     return pow(p, e, n)
@@ -40,3 +43,10 @@ def gm_keygen(nbits):
     while num.legendre(x, p) != -1 or num.legendre(x, q) != -1:
         x = rand.randrange(n)
     return x, n, p, q
+
+#parse the SSH publice key file given by fname and return n,e
+def parse_ssh_rsa_public_key(fname):
+    f = open(fname, 'rb')
+    key = serialization.load_ssh_public_key(f.read(), const.BACKEND)
+    nums = key.public_numbers()
+    return nums.n, nums.e
