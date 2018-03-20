@@ -48,5 +48,6 @@ def gm_keygen(nbits):
 def parse_ssh_rsa_public_key(fname):
     f = open(fname, 'rb')
     key = serialization.load_ssh_public_key(f.read(), const.BACKEND)
+    f.close()
     nums = key.public_numbers()
     return nums.n, nums.e
