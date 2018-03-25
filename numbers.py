@@ -35,10 +35,18 @@ def isqrt(n):
         y = (x + n // x) >> 1
     return x
 
+#integer square root, rounded up
+def isqrt_ceil(n):
+    sqn = isqrt(n)
+    if sqn * sqn == n:
+        return sqn
+    else:
+        return sqn + 1
+
 #modular multiplicative inverse of a mod n
 def mod_inverse(a, n):
     n0 = n
-    a0 = a
+    a0 = a % n
     t0 = 0
     t = 1
     q = n0 // a0
@@ -171,7 +179,7 @@ def is_prime_fast(n, iterations=50):
 
 #Very simple but inefficient prime factoring algorithm
 def prime_factors(n):
-    facts = possible_pregen_factors(n)
+    facts = itertools.chain(pregen_primes(), itertools.count(max_pregen_prime()+2, 2))
     fact = next(facts)
     while n > 1:
         if n % fact == 0:
@@ -343,3 +351,112 @@ def ilog(base, n):
         count += 1
         n //= base
     return count
+
+#equations should be pairs of integers (a,m), where all of the m's are pairwise coprime.
+#returns the unique solution, mod the product of all m's, for the system of equations:
+#x = a1 (mod m1), x = a2 (mod m2), ...
+def chinese_remainder(*equations):
+    r = len(equations)
+    m = 1
+    for ai, mi in equations:
+        m *= mi
+    return sum(ai * (m//mi) * mod_inverse(m//mi, mi) for ai, mi in equations) % m
+
+#discrete log_a(b) mod n.
+#order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)
+#Uses time and space O(sqrt(order)) (usually way too much)
+def shanks_algorithm(a, b, n, order=None):
+    if order is None:
+        order = n-1
+    m = isqrt_ceil(order)
+    l1 = []
+    val = 1
+    apm = pow(a, m, n)
+    for i in range(m): #l1[i] = (j, a^(mi)):
+        l1.append((i, val))
+        val = (val * apm) % n
+    l1.sort(key = lambda t: t[1])   #sort by second coordinate
+    l2 = []
+    val = b
+    ainv = mod_inverse(a, n)
+    for i in range(m):  #l2[i] = (i, b*a^(-i)):
+        l2.append((i, val))
+        val = (val * ainv) % n
+    l2.sort(key = lambda t: t[1])
+    #find elements of l1 and l2 that have the same 2nd coordinate:
+    i = 0
+    j = 0
+    while l1[i][1] != l2[j][1]:
+        if l1[i][1] < l2[j][1]:
+            i += 1
+        else:
+            j += 1
+    return (m * l1[i][0] + l2[j][0]) % order
+
+#discrete log_a(b) mod n.
+#order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)
+def pollard_rho_dislog_algorithm(a, b, n, order=None):
+    if order is None:
+        order = n - 1
+
+    def f(x, i, j):
+        if x % 3 == 1:
+            return (b*x % n, i, (j+1) % order)
+        if x % 3 == 0:
+            return (x**2 % n, 2*i % order, 2*j % order)
+        return (a*x % n, (i+1) % order, j)
+
+    x, i, j = f(1, 0, 0)
+    xt, it, jt = f(x, i, j)
+    while x != xt:
+        x, i, j = f(x, i, j)
+        xt, it, jt = f(xt, it, jt)
+        xt, it, jt = f(xt, it, jt)
+
+    if jt > j:
+        d = gcd(jt - j, order)
+        di = (i - it) // d
+        dj = (jt - j) // d
+    else:
+        d = gcd(j - jt, order)
+        di = (it - i) // d
+        dj = (j - jt) // d
+    dorder = order // d
+    #now we have c*dj = di (mod dorder)
+    dc = (mod_inverse(dj, dorder) * (di % dorder)) % dorder
+    for k in range(d):
+        c = (dc + k*dorder) % order
+        if pow(a, c, n) == b:
+            return c
+
+#returns the discrete (log_a(b) mod n) mod q^c, where q is prime, q^c divides order, and q^(c+1) doesn't.
+#order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)
+def pohlig_hellman_algorithm_factor(a, b, n, q, c, order=None):
+    SHANKS_MAX_Q = 2**58    #max q for which shank's algorithm will be used instead of pollard's
+
+    if order is None:
+        order = n - 1
+    res = []    #this will be a base-q representation of the result
+    bj = b
+    for j in range(c):
+        d = pow(bj, order // (q**(j+1)), n)
+        base = pow(a, order // q, n)
+        if q <= SHANKS_MAX_Q:
+            aj = shanks_algorithm(base, d, n, q)
+        else:
+            aj = pollard_rho_dislog_algorithm(base, d, n, q)
+        res.append(aj)
+        bj = bj * pow_neg(a, -aj*(q**j), n) % n
+    return sum(res[i]*(q**i) for i in range(c))
+
+#returns the discrete log_a(b) mod n. Factors is the complete list of factors in the prime factorization of order, including repetitions.
+#for example, list(prime_factors(order))
+#order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)
+def pohlig_hellman_algorithm(a, b, n, factors, order=None):
+    equations = []
+    lfactors = list(factors)
+    for q in set(lfactors):
+        c = lfactors.count(q)
+        logmod = pohlig_hellman_algorithm_factor(a, b, n, q, c, order)
+        equations.append((logmod, q**c))
+    return chinese_remainder(*equations)
