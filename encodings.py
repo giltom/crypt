@@ -60,12 +60,34 @@ def bytes2bits(b):
 def bits2bytes(bits):
     return bin2bytes(''.join(str(bit) for bit in bits))
 
-def is_base64(b):
+def is_base64(s):
+    if type(s) is not str:
+        return False
     try:
-        base64.b64decode(b, validate=True)
+        base64.b64decode(s, validate=True)
         return True
     except binascii.Error:
         return False
+
+def is_hex(s):
+    if type(s) is not str:
+        return False
+    try:
+        hex2bytes(s)
+        return True
+    except ValueError:
+        return False
+
+def is_bin(s):
+    if type(s) is not str:
+        return False
+    return all(c == '0' or c == '1' for c in s)
+
+def is_bits(l):
+    if type(l) is not list:
+        return False
+    return all(c == 0 or c == 1 for c in s)
+
 
 #add some bytes to produce valid base64, assuming the string starts at index start
 def pad_base64(s, start=0):
@@ -80,16 +102,19 @@ def pad_base64(s, start=0):
         pad = pad[:-2] + '=='
     return res + pad
 
-#maps an encoding name to a 2-tuple (frombytes, tobytes) of conversion functions
+#maps an encoding name to a 3-tuple (frombytes, tobytes, identify)
+#frombytes - converts from bytes to this
+#tobytes - converts from this to bytes
+#identify - returns True if a value is of this type. Use None if the type cannot be identified.
 ENCODING_MAP = {
-    'bytes' : (lambda x: x, lambda x: x),                   #bytes object
-    'hex' : (bytes2hex, hex2bytes),                         #hexadecimal string
-    'base64' : (bytes2base64, base642bytes),                #base64
-    'int_big' : (bytes2int_big, int2bytes_big),             #integer, big endian conversion
-    'int_little' : (bytes2int_little, int2bytes_little),    #integer, little endian conversion
-    'int' : (bytes2int_big, int2bytes_big),                 #same as int_big
-    'bin' : (bytes2bin, bin2bytes),                         #binary string
-    'bits' : (bytes2bits, bits2bytes)                       #list of bits (the integers 0 and 1)
+    'bytes' : (lambda x: x, lambda x: x, lambda x: type(x) is bytes),                   #bytes object
+    'hex' : (bytes2hex, hex2bytes, is_hex),                         #hexadecimal string
+    'base64' : (bytes2base64, base642bytes, is_base64),                #base64
+    'int_big' : (bytes2int_big, int2bytes_big, None),             #integer, big endian conversion
+    'int_little' : (bytes2int_little, int2bytes_little, None),    #integer, little endian conversion
+    'int' : (bytes2int_big, int2bytes_big, lambda x: type(x) is int),                 #same as int_big
+    'bin' : (bytes2bin, bin2bytes, is_bin),                         #binary string
+    'bits' : (bytes2bits, bits2bytes, is_bits)                       #list of bits (the integers 0 and 1)
 }
 
 class Converter:
@@ -105,6 +130,23 @@ class Converter:
     def __call__(self, val):
         return self.bytesto(self.tobytes(val))
 
-#convert val from the format encfrom to the format encto (as strings)
+#Returns the name of the encoding of val if it can be guessed, or None otherwise
+def id_encoding(val):
+    for name in sorted(ENCODING_MAP.keys()):
+        checkfunc = ENCODING_MAP[name][2]
+        if checkfunc is not None and checkfunc(val):
+            return name
+    return None
+
+#convert val from the format encfrom to the format encto (as strings).
 def convert(val, encfrom, encto):
     return Converter(encfrom, encto)(val)
+
+#tries to determine the encoding of a automatically and convert it to encto.
+#integers are converted as big-endian
+#be careful of cases of ambiguity (such as hex vs b64) - the result could be either one.
+def conv(val, encto):
+    encfrom = id_encoding(val)
+    if encfrom is None:
+        raise util.CryptoException("Could not identify encoding.")
+    return convert(val, encfrom, encto)
