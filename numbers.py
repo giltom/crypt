@@ -333,3 +333,13 @@ def rrotate(i, amt, size):
     amt = amt % size
     mask = ~-(1 << size)
     return ((i >> amt) + (i << (size - amt))) & mask
+
+#return integer logarithm, rounded down.
+def ilog(base, n):
+    if n < 0:
+        raise util.CryptoException("Log of negative integer.")
+    count = 0
+    while n >= base:
+        count += 1
+        n //= base
+    return count
