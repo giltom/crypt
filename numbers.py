@@ -163,26 +163,22 @@ def miller_rabin(n):
     return False
 
 #Nondeterministic fast prime-checking algorithm (chance of error is 1/(4**iterations))
-def is_prime_fast(n, iterations=30):
+def is_prime_fast(n, iterations=50):
     for _ in range(iterations):
         if not miller_rabin(n):
             return False
     return True
 
-#Very simple but inefficient prime factoring algorithms
+#Very simple but inefficient prime factoring algorithm
 def prime_factors(n):
-    factors = []
-    while (n % 2 == 0):
-        factors.append(2)
-        n //= 2
-    fact = 3
+    facts = possible_pregen_factors(n)
+    fact = next(facts)
     while n > 1:
         if n % fact == 0:
-            factors.append(fact)
+            yield fact
             n //= fact
         else:
-            fact += 2
-    return factors
+            fact = next(facts)
 
 #generates a random number with the given number of bits. Do not use for real crypto.
 #the MSB is always 1, so there are actually 2^(nbits-1) bits of randomness.
