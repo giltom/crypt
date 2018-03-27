@@ -460,3 +460,30 @@ def pohlig_hellman_algorithm(a, b, n, factors, order=None):
         logmod = pohlig_hellman_algorithm_factor(a, b, n, q, c, order)
         equations.append((logmod, q**c))
     return chinese_remainder(*equations)
+
+#returns integer k-th root of n, rounded down
+def iroot(k, n):
+    if k <= 0:
+        raise util.CryptoException('Bad root order!')
+    if k == 1:
+        return n
+    if k == 2:
+        return isqrt(n)
+    if k == 3:
+        return icbrt(n)
+    #we do a binary search in [0,n] because im lazy
+    bottom = 0
+    top = n
+    candidate = 0
+    while bottom <= top:
+        middle = (top - bottom) // 2 + bottom
+        res = middle**k
+        if res == n:
+            return middle
+        if res < n:
+            if middle > candidate:
+                candidate = middle
+            bottom = middle + 1
+        else:
+            top = middle - 1
+    return candidate

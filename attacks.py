@@ -227,3 +227,23 @@ def elgamal_break_two_signatures(p, alpha, beta, gamma, m1, delta1, m2, delta2):
                 if pow(alpha, a, p) == beta:
                     return a,k
     raise util.CryptoException('Error: could not calculate elgamal private key.')
+
+#tries to decrypt a short message encrypted with a small exponent (i.e. e=3, message length is 8 bytes)
+#maxbits is the maximum number of bits in the message.
+#testf should accept a bytes (decoded big-endian) and return True for possible plaintext candidates (i.e. is_nonws)
+#testf can be left None to print all candidates (shouldn't be too many)
+#yields all candidates for which testf returns True
+#if verbose is True, print progress messages
+def rsa_low_exp_test(n, e, c, maxbits, testf=None, verbose=False):
+    maxpow = (2**maxbits - 1)**e
+    maxk = (maxpow - c) // n
+    tenth = maxk // 10
+    for k in range(maxk + 1):
+        guesspow = c + k*n
+        guess = num.iroot(e, guesspow)
+        if guess**e == guesspow:
+            b = enc.int2bytes_big(guess)
+            if not testf or testf(b):
+                yield b
+        if verbose and k % tenth == 0:
+            print('{:.02%} complete'.format(k / maxk))

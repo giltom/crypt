@@ -44,10 +44,9 @@ def xor_hex(hex1, hex2):
 
 #number of printable characters
 def num_printable(b):
-    s = set(string.printable.encode('ASCII'))
     cnt = 0
     for byte in b:
-        if byte in s:
+        if byte in const.CHARS_PRINTABLE:
             cnt += 1
     return cnt
 
@@ -80,12 +79,10 @@ def normal_byte_dist(b, probs):
     return score
 
 def all_printable(b):
-    s = set(string.printable.encode('ASCII'))
-    return all(byte in s for byte in b)
+    return all(byte in const.CHARS_PRINTABLE for byte in b)
 
 def all_nonws(b):
-    s = set(string.printable.encode('ASCII')) - set(string.whitespace.encode('ASCII'))
-    return all(byte in s for byte in b)
+    return all(byte in const.CHARS_PRINTABLE_NONWS for byte in b)
 
 #count number of non-overlapping substrings in b using the given wordlist, which should be a list of bytes
 def count_substrings(b, wordlist):
