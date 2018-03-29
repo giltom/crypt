@@ -95,19 +95,24 @@ def rot_decrypt(s, k):
     lvals = lvals_sub_const(lvals, k)
     return lvals2str(lvals)
 
-#Substitution cipher. Subs must be a dict of char:char pairs. Ignores chars not in the dict. Ignores case and switches everything to uppercase.
+#Substitution cipher. Subs must be a dict of char:char pairs. Ignores chars not in the dict.
+#Case sensitive!
 def sub_encrypt(s, subs):
-    s = s.upper()
-    for char in subs:
-        s = s.replace(char.upper(), subs[char].upper())
-    return s
+    res = ''
+    for char in s:
+        if char in subs:
+            res += subs[char]
+        else:
+            res += char
+    return res
 
-#Sub cipher decryption. subs must be the dict used to encrypt. Ignores case and switches to lowercase.
+#Sub cipher decryption. subs must be the dict used to encrypt.
+#Case sensitive!
 def sub_decrypt(s, subs):
-    s = s.lower()
+    inverted = {}
     for char in subs:
-        s = s.replace(subs[char].lower(), char.lower())
-    return s
+        inverted[subs[char]] = char
+    return sub_encrypt(s, inverted)
 
 #vigenere cipher
 def vigenere_encrypt(s, key):
