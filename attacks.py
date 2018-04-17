@@ -247,3 +247,10 @@ def rsa_low_exp_test(n, e, c, maxbits, testf=None, verbose=False):
                 yield b
         if verbose and k % tenth == 0:
             print('{:.02%} complete'.format(k / maxk))
+
+#RSA known ciphertext bruteforce. Tries all of the given plaintexts (as integers). Typically plaintexts will be range(...)
+def rsa_brute_force(n, e, c, plaintexts):
+    for p in plaintexts:
+        if pow(p, e, n) == c:
+            return p
+    return None

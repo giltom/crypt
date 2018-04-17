@@ -344,7 +344,6 @@ def ilog(base, n):
 #returns the unique solution, mod the product of all m's, for the system of equations:
 #x = a1 (mod m1), x = a2 (mod m2), ...
 def chinese_remainder(*equations):
-    r = len(equations)
     m = 1
     for ai, mi in equations:
         m *= mi
