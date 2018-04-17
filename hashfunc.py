@@ -5,6 +5,7 @@ from crypt import const
 from crypt import byte
 from crypt import encodings as enc
 from crypt import numbers as num
+from crypt import util
 
 #hash b using the hash algorithm hfunc provided by cryptography
 def get_hash(b, hfunc):
@@ -38,7 +39,7 @@ def sha1_round(state, chunk):
     w = [enc.bytes2int_big(block) for block in byte.get_blocks(chunk, 4)]   #16 4-byte blocks
     mask = ~-(1<<32)
     for i in range(16, 80):
-        w.append(num.lrotate(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1, 32))
+        w.append(util.lrotate(w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1, 32))
     a, b, c, d, e = h
     for i in range(0, 80):
         if 0 <= i <= 19:
@@ -53,10 +54,10 @@ def sha1_round(state, chunk):
         else:
             f = b ^ c ^ d
             k = 0xCA62C1D6
-        temp = (num.lrotate(a, 5, 32) + f + e + k + w[i]) & mask
+        temp = (util.lrotate(a, 5, 32) + f + e + k + w[i]) & mask
         e = d
         d = c
-        c = num.lrotate(b, 30, 32)
+        c = util.lrotate(b, 30, 32)
         b = a
         a = temp
     h[0] += a

@@ -54,3 +54,15 @@ def time_limit(seconds):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
+
+#rotate the size-bits unsigned integer i amt bits to the left
+def lrotate(i, amt, size):
+    amt = amt % size
+    mask = ~-(1 << size)
+    return ((i << amt) + (i >> (size - amt))) & mask
+
+#rotate the size-bits unsigned integer i amt bits to the right
+def rrotate(i, amt, size):
+    amt = amt % size
+    mask = ~-(1 << size)
+    return ((i >> amt) + (i << (size - amt))) & mask
