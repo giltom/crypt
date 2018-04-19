@@ -22,6 +22,9 @@ def sha256(b):
 def md5(b):
     return get_hash(b, hashes.MD5())
 
+def sha512(b):
+    return get_hash(b, hashes.SHA512())
+
 #return the pad for the given message length
 def sha1_get_pad(length):
     d = (55 - length) % 64

@@ -113,6 +113,18 @@ def freq_dist(b, probs):
 def inverse_freq_dist(b, probs):
     return 1/freq_dist(b, probs)
 
+#returns a list of the frequency of each byte
+def byte_freqs(b):
+    counts = count_bytes(b)
+    tot = sum(counts)
+    return [c/tot for c in counts]
+
+#calculate entropy of the bytes, as the number of bits per byte. The closer to 8, the more random.
+def entropy(b):
+    if b == b'':
+        return 0
+    return -sum(p * math.log(p, 2) for p in byte_freqs(b) if p != 0)
+
 #Lower all characters in the string and remove non-letter characters:
 def to_alpha(b):
     return bytes(filter(lambda byte: chr(byte) in string.ascii_lowercase, b.lower()))

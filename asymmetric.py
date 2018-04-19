@@ -53,12 +53,26 @@ def parse_ssh_rsa_public_key(fname):
     nums = key.public_numbers()
     return nums.n, nums.e
 
+#parse a PEM private RSA key and return n,e,d,p,q.
+#can give password.
+def parse_pem_rsa_private_key(fname, password=None):
+    f = open(fname, 'rb')
+    key = serialization.load_pem_private_key(f.read(), password, const.BACKEND)
+    f.close()
+    prinums = key.private_numbers()
+    pubnums = key.public_key().public_numbers()
+    return pubnums.n, pubnums.e, prinums.d, prinums.p, prinums.q
+
 #Return the prime factors p,q of n. e is the public exponent and d is the private exponent.
 def rsa_factor_given_private_key(n, e, d):
     return rsa.rsa_recover_prime_factors(n, e, d)
 
+def make_ssh_rsa_public_key(fname, n, e):
+    nums = rsa.RSAPublicNumbers(e, n)
+    #TODO: finish this
+
 #Creates a PEM-format RSA private key in the file fname, using the modulus n, public exponent e and private exponent d
-def make_pem_rsa_key(fname, n, e, d):
+def make_pem_rsa_private_key(fname, n, e, d):
     p, q = rsa_factor_given_private_key(n, e, d)
     dmp1 = d % (p - 1)
     dmq1 = d % (q - 1)
