@@ -15,6 +15,12 @@ def pkcs7_pad_16(b):
 def pkcs7_unpad_16(b):
     return pkcs7_unpad(b, 16)
 
+def pkcs7_pad_8(b):
+    return pkcs7_pad(b, 8)
+
+def pkcs7_unpad_8(b):
+    return pkcs7_unpad(b, 8)
+
 def pkcs7_is_valid(b, bsize):
     try:
         pkcs7_unpad(b, bsize)
