@@ -8,18 +8,11 @@ from crypt import const
 
 #xor all bytes in bytes objects (result is the length of the shorter input)
 def xor(bytes1, bytes2):
-    length = min(len(bytes1), len(bytes2))
-    tot = bytearray(length)
-    for i in range(length):
-        tot[i] = bytes1[i] ^ bytes2[i]
-    return bytes(tot)
+    return bytes(b1 ^ b2 for b1, b2 in zip(bytes1, bytes2))
 
 #xor all bytes, repeating bytes in the second argument.
 def xor_repeat(b, repeat):
-    tot = bytearray()
-    for b1,b2 in zip(b, itertools.cycle(repeat)):
-        tot.append(b1 ^ b2)
-    return bytes(tot)
+    return bytes(b1 ^ b2 for b1, b2 in zip(b, itertools.cycle(repeat)))
 
 #xor the crib with the bytes, starting and the start index and skipping step bytes ahead each time
 def xor_crib(b, crib, start, step):

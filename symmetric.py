@@ -4,6 +4,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from crypt import const
 from crypt import padders as pad
+from crypt import byte
+from crypt import encodings as enc
+from crypt import util
 
 def symmetric_encrypt(plaintext, algorithm, mode, padder=None):
     cipher = Cipher(algorithm, mode, backend=const.BACKEND)
@@ -23,6 +26,16 @@ def aes_encrypt(plaintext, key, mode, padder=None):
 
 def aes_decrypt(ciphertext, key, mode, unpadder=None):
     return symmetric_decrypt(ciphertext, algorithms.AES(key), mode, unpadder=unpadder)
+
+def aes_encrypt_block(plaintext, key):
+    if len(plaintext) != 16:
+        raise util.CryptoException('Plaintext must be 16 bytes')
+    return aes_encrypt(plaintext, key, modes.ECB(), padder=None)
+
+def aes_decrypt_block(ciphertext, key):
+    if len(ciphertext) != 16:
+        raise util.CryptoException('Ciphertext must be 16 bytes')
+    return aes_decrypt(plaintext, key, modes.ECB(), unpadder=None)
 
 def aes_encrypt_ecb(plaintext, key, padder=pad.pkcs7_pad_16):
     return aes_encrypt(plaintext, key, modes.ECB(), padder=padder)
@@ -61,3 +74,26 @@ def lfsr_1bit(nbits, start, feedback_bit, length):
         feedback = 1 if reg & (1 << feedback_bit) else 0
         reg = (reg >> 1) | ((feedback ^ bit) << (nbits - 1))
     return out
+
+#An alternative way to generate a CTR keystream.
+#nonce must have a length of half of the block size.
+#The first len(nonce) bytes of the block are the nonce.
+#The last len(nonce) bytes of the block are a running counter, little endian.
+def ctr_alt_ptext_stream(nonce):
+    ctr = 0
+    half_bsize = 1 << len(nonce)
+    while True:
+        yield nonce + enc.int2bytes_little(ctr, size=len(nonce))
+        ctr = (ctr + 1) % half_bsize
+
+def aes_ctr_alt_keystream(key, nonce):
+    if len(nonce) != 8:
+        raise util.CryptoException('Nonce must be 8 bytes')
+    for block in ctr_alt_ptext_stream(nonce):
+        cblock = aes_encrypt_block(block, key)
+        for b in cblock:
+            yield b
+
+#works for both encryption and decryption
+def aes_ctr_alt_crypt(text, key, nonce):
+    return byte.xor(text, aes_ctr_alt_keystream(key, nonce))

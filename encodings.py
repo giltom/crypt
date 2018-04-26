@@ -1,6 +1,8 @@
 import binascii
 import base64
 
+from crypt import util
+
 #hex string to bytes
 def hex2bytes(hexstr):
     return bytes.fromhex(hexstr)
@@ -29,16 +31,20 @@ def bytes2int_little(b):
     return bytes2int_big(reversed(b))
 
 #Integer to bytes, big endian
-def int2bytes_big(i):
+#If size is given (in bytes), discards bytes over the given size and fills with 0 bytes up to it
+def int2bytes_big(i, size=None):
+    if size is None and i < 0:
+        raise util.CryptoException('Size must be given for negative integers')
     res = b''
-    while i != 0:
+    while (size is None and i != 0) or (size is not None and len(res) < size):
         res = bytes([i & 0xFF]) + res
         i >>= 8
     return res
 
 #Integer to bytes, little endian
-def int2bytes_little(i):
-    return bytes(reversed(int2bytes_big(i)))
+#if size is given, fills with 0 bytes to the given size
+def int2bytes_little(i, size=None):
+    return bytes(reversed(int2bytes_big(i, size=size)))
 
 def bytes2bin(b):
     s = ''
