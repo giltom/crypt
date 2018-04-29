@@ -18,7 +18,7 @@ def break_multiple_xors(ciphertexts, ngs, prune=100, verbose=False):
                 prob = 1
                 for ctext in ciphertexts:
                     pbyte = keyguess ^ ctext[i]
-                    if ngs.prob(pbyte, b'') == 0:
+                    if not ngs.is_byte_used(pbyte):
                         prob = 0
                         break
                     cprefix = ctext[max(0, i - ngs.maxlen + 1) : i]

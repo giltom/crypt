@@ -28,24 +28,33 @@ class NGramStats:
         self.delta = delta
         self.maxlen = max(len(k) for k in self.counts)
         self.probcache = {}
+        self.usedbytes = [b for b in range(256) if bytes([b]) in self.counts]
 
     #probability of b given the prefix
     def prob(self, b, prefix):
         if len(prefix) == 0:
             return self.uniprobs[b]
+        if self.uniprobs[b] == 0:
+            return 0.0
         if (b, prefix) in self.probcache:
             return self.probcache[(b, prefix)]
         if prefix not in self.counts:
             return self.prob(b, prefix[1:])
         nafter = 0
-        for bt in range(256):
-            if prefix + bytes([bt]) in self.counts:
+        timesafter = 0
+        for bt in self.usedbytes:
+            ngram = prefix + bytes([bt])
+            if ngram in self.counts:
                 nafter += 1
+                timesafter += self.counts[ngram]
         seq = prefix + bytes([b])
         if seq in self.counts:
             nseq = self.counts[seq] - self.delta
         else:
             nseq = 0
-        res = (nseq + self.delta * nafter * self.prob(b, prefix[1:])) / self.counts[prefix]
+        res = (nseq + self.delta * nafter * self.prob(b, prefix[1:])) / timesafter
         self.probcache[(b, prefix)] = res
         return res
+
+    def is_byte_used(self, b):
+        return self.uniprobs[b] != 0
