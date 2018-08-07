@@ -340,6 +340,9 @@ def ilog(base, n):
         n //= base
     return count
 
+def num_bits(n):
+    return ilog(2, n) + 1
+
 #equations should be pairs of integers (a,m), where all of the m's are pairwise coprime.
 #returns the unique solution, mod the product of all m's, for the system of equations:
 #x = a1 (mod m1), x = a2 (mod m2), ...
