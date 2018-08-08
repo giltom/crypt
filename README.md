@@ -21,7 +21,10 @@ Note that this is focused mostly on utility stuff for CTFs and not actually impl
 There are too many functions to document them all here. All non-obvious functions have comments documenting them in the code. I'll just go over two common things:
 
 ## Encoding Conversions
-The `encodings` module allows you to perform conversions easily without remembering different functions. All you need to do is call `convert(value, encfrom, encto)`, where encfrom and encto are the string names of the original encoding and the encoding to convert to respectively. The supported encodings are currently:
+The `encodings` module allows you to perform conversions easily without remembering different functions. All you need to do is call `convert(value, encfrom, encto)`, where encfrom and encto are the string names of the original encoding and the encoding to convert to respectively.
+You can also use `convert(val, encto)` which will try to detect the from encoding automatically, but be careful: With strings, the encoding used is frequently ambiguous (i.e. can be both hex and base64). This will not be detected automatically.
+
+The supported encodings are currently:
 
 * `bytes` - normal Python bytes object.
 * `hex` - hexadecimal string.
@@ -31,6 +34,10 @@ The `encodings` module allows you to perform conversions easily without remember
 * `int` - same as `int_big`.
 * `bin` - binary string.
 * `bits` - list of integer bits (the ints 0 and 1).
+* `str` - string, UTF-8 conversion.
+* `bytearray` - bytearray.
+
+For encodings that are just a builtin function or class (`hex`, `int`, `bytes`, etc), you can just use that without quotes (i.e. `convert(8, bytes)`).
 
 You can also create an instance of Converter that performs conversion when called, by calling `Converter(encfrom, encto)`. This is more efficient for many conversions.
 
@@ -39,9 +46,9 @@ Finally, there are also functions like `hex2bytes(s)`, `bytes2bits(b)`, etc that
 Here are some examples:
 
 ```
->>> convert('AAAA', 'hex', 'bin')
+>>> convert('AAAA', hex, bin)
 '1010101010101010'
->>> f = Converter('bytes', 'base64')
+>>> f = Converter(bytes, 'base64')
 >>> f(b'abcd')
 'YWJjZA=='
 >>> hex2bytes('abcd')

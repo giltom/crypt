@@ -1,5 +1,6 @@
 import binascii
 import base64
+from collections import OrderedDict
 
 from crypt import util
 
@@ -108,51 +109,77 @@ def pad_base64(s, start=0):
         pad = pad[:-2] + '=='
     return res + pad
 
+def bytes2str(b):
+    return b.decode('UTF-8')
+
+def str2bytes(s):
+    return s.encode('UTF-8')
+
+def bytes2bytearray(b):
+    return bytearray(b)
+
+def bytearray2bytes(b):
+    return bytes(b)
+
 #maps an encoding name to a 3-tuple (frombytes, tobytes, identify)
 #frombytes - converts from bytes to this
 #tobytes - converts from this to bytes
 #identify - returns True if a value is of this type. Use None if the type cannot be identified.
-ENCODING_MAP = {
-    'bytes' : (lambda x: x, lambda x: x, lambda x: type(x) is bytes),                   #bytes object
-    'hex' : (bytes2hex, hex2bytes, is_hex),                         #hexadecimal string
-    'base64' : (bytes2base64, base642bytes, is_base64),                #base64
-    'int_big' : (bytes2int_big, int2bytes_big, None),             #integer, big endian conversion
-    'int_little' : (bytes2int_little, int2bytes_little, None),    #integer, little endian conversion
-    'int' : (bytes2int_big, int2bytes_big, lambda x: type(x) is int),                 #same as int_big
-    'bin' : (bytes2bin, bin2bytes, is_bin),                         #binary string
-    'bits' : (bytes2bits, bits2bytes, is_bits)                       #list of bits (the integers 0 and 1)
+ENCODING_MAP = OrderedDict(
+    bytes = (lambda x: x, lambda x: x, lambda x: type(x) is bytes),    #bytes object
+    int_big = (bytes2int_big, int2bytes_big, lambda x: type(x) is int), #integer, big endian conversion
+    int_little = (bytes2int_little, int2bytes_little, None),            #integer, little endian conversion
+    hex = (bytes2hex, hex2bytes, is_hex),                               #hexadecimal string
+    base64 = (bytes2base64, base642bytes, is_base64),                   #base64
+    bin = (bytes2bin, bin2bytes, is_bin),                               #binary string
+    bits = (bytes2bits, bits2bytes, is_bits),                           #list of bits (the integers 0 and 1)
+    str = (bytes2str, str2bytes, lambda x: type(x) is str),             #string, UTF-8 conversion
+    bytearray = (bytes2bytearray, bytearray2bytes, lambda x: type(x) is bytearray)  #bytearray
+)
+
+ALIASES = {
+    'int' : 'int_big',
+    int : 'int_big',
+    str : 'str',
+    bytes : 'bytes',
+    hex : 'hex',
+    bin : 'bin',
+    bytearray : 'bytearray'
 }
+
+def get_encoders(name):
+    if type(name) is str:
+        name = name.strip().lower()
+    if name in ALIASES:
+        name = ALIASES[name]
+    if name not in ENCODING_MAP:
+        raise ValueError('Bad encoding name')
+    bytesto, tobytes, _ = ENCODING_MAP[name]
+    return name, bytesto, tobytes
 
 class Converter:
     #create a callable object that converts from encfrom to encto
     def __init__(self, encfrom, encto):
-        self.encfrom = encfrom.strip().lower()
-        self.encto = encto.strip().lower()
-        if self.encfrom not in ENCODING_MAP or self.encto not in ENCODING_MAP:
-            raise util.CryptoException("Bad encoding name")
-        self.tobytes = ENCODING_MAP[self.encfrom][1]
-        self.bytesto = ENCODING_MAP[self.encto][0]
+        self.encfrom, _, self.tobytes = get_encoders(encfrom)
+        self.encto, self.bytesto, _ = get_encoders(encto)
 
     def __call__(self, val):
         return self.bytesto(self.tobytes(val))
 
 #Returns the name of the encoding of val if it can be guessed, or None otherwise
 def id_encoding(val):
-    for name in sorted(ENCODING_MAP.keys()):
+    for name in ENCODING_MAP.keys():
         checkfunc = ENCODING_MAP[name][2]
         if checkfunc is not None and checkfunc(val):
             return name
-    return None
+    raise util.CryptoException("Could not identify encoding automatically.")
 
 #convert val from the format encfrom to the format encto (as strings).
-def convert(val, encfrom, encto):
+def convert(val, enc1, enc2=None):
+    if enc2 is None:
+        encto = enc1
+        encfrom = id_encoding(val)
+    else:
+        encfrom = enc1
+        encto = enc2
     return Converter(encfrom, encto)(val)
-
-#tries to determine the encoding of a automatically and convert it to encto.
-#integers are converted as big-endian
-#be careful of cases of ambiguity (such as hex vs b64) - the result could be either one.
-def conv(val, encto):
-    encfrom = id_encoding(val)
-    if encfrom is None:
-        raise util.CryptoException("Could not identify encoding.")
-    return convert(val, encfrom, encto)
