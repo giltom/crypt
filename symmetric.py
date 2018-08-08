@@ -1,4 +1,5 @@
 import os
+import itertools
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
@@ -97,3 +98,23 @@ def aes_ctr_alt_keystream(key, nonce):
 #works for both encryption and decryption
 def aes_ctr_alt_crypt(text, key, nonce):
     return byte.xor(text, aes_ctr_alt_keystream(key, nonce))
+
+def rc4_stream(key, alphabet=None):
+    if alphabet is None:
+        alphabet = range(256)
+    perm = list(alphabet)
+    length = len(perm)
+    j = 0
+    for i in range(length):
+        j = (j + perm[i] + key[i % len(key)]) % length
+        perm[i], perm[j] = perm[j], perm[i]
+    i = 0
+    j = 0
+    while True:
+        i = (i + 1) % length
+        j = (j + perm[i]) % length
+        perm[i], perm[j] = perm[j], perm[i]
+        yield perm[(perm[i] + perm[j]) % length]
+
+def stream_slice(stream, *args):
+    return bytes(itertools.islice(stream, *args))
