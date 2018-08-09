@@ -155,6 +155,8 @@ class IPolynomial:
             if i == 0 or a != 1:
                 res += str(a)
             if i > 0:
+                if a != 1:
+                    res += '*'
                 res += 'x'
             if i > 1:
                 res += '^' + str(i)
@@ -290,17 +292,16 @@ def gram_schmidt(basis):
 """
 
 def update_ortho(basis, ortho, u, i, val):
-    zero = IVector.zero(len(val))
+    basis[i] = val
     ortho[i] = val
     for j in range(i):
-        u[i][j] = project_factor(ortho[j], basis[i])
+        u[i][j] = project_factor(ortho[j], val)
         ortho[i] -= u[i][j] * ortho[j]
     for k in range(i+1, len(basis)):
         oldterm = u[k][i] * ortho[i]
         u[k][i] = project_factor(ortho[i], basis[k])
         newterm = u[k][i] * val
         ortho[k] = ortho[k] + oldterm - newterm
-    basis[i] = val
 
 def lll(basis, delta=Decimal('0.75')):
     basis = list(basis)
@@ -310,27 +311,25 @@ def lll(basis, delta=Decimal('0.75')):
     k = 1
     while k <= n:
         for j in range(k-1, -1, -1):
-            ukj = project_factor(ortho[j], basis[k])#u[k][j]
+            ukj = u[k][j]
             if abs(ukj) > Decimal('0.5'):
-                newval = basis[k] - round(ukj)*basis[j]
-                #update_ortho(basis, ortho, u, k, newval)
-                basis[k] = newval
-                ortho, u = gram_schmidt(basis)
-        ukk1 = project_factor(ortho[k-1], basis[k])#u[k][k-1]
+                decval = round(ukj)*basis[j]
+                newval = basis[k] - decval
+                print('updating ortho')
+                update_ortho(basis, ortho, u, k, newval)
+                print('done updating')
+        ukk1 = u[k][k-1]
         if ortho[k].norm2() >= (delta - ukk1**2) * ortho[k-1].norm2():
             k += 1
-            print('inc')
+            print('inc to', k)
         else:
-            """
             temp = basis[k]
             update_ortho(basis, ortho, u, k, basis[k-1])
             update_ortho(basis, ortho, u, k-1, temp)
-            """
-            basis[k], basis[k-1] = basis[k-1], basis[k]
             ortho, u = gram_schmidt(basis)
             if k > 1:
                 k -= 1
-                print('dec')
+                print('dec to', k)
     return basis
 
 #f - a polynomial
@@ -345,16 +344,17 @@ def coppersmith(f, n, epsilon):
     """
     m = math.ceil(1 / (delta * epsilon))
     prec = num.ilog(10, n) * m
-    #getcontext().prec = prec 
+    getcontext().prec = 100 
+    npm = n**m
 
-    print('m:', m, 'epsilon:', epsilon, 'prec:', prec)
+    print('delta:', delta, 'm:', m, 'epsilon:', epsilon, 'prec:', prec)
 
     maxdeg = 0
     polys = []
     for i in range(m):
         polys.append([])
         for j in range(delta):
-            gij = ((n**i * f**(m-i)) << j)
+            gij = ((n**i * f**(m-i)) << j) % npm
             polys[i].append(gij)
             if gij.degree() > maxdeg:
                 maxdeg = gij.degree()
@@ -365,7 +365,7 @@ def coppersmith(f, n, epsilon):
     basis = []
     for row in polys:
         for poly in row:
-            bpoly = poly(IPolynomial(0, bound))#bound * x
+            bpoly = poly(IPolynomial(0, bound)) % npm
             basis.append(IVector(bpoly.coefficients(maxdeg)))
     
     lll_basis = lll(basis)

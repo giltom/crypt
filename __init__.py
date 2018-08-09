@@ -9,5 +9,6 @@ from crypt.padders import *
 from crypt.symmetric import *
 from crypt.util import *
 from crypt.hashfunc import *
+from crypt.vector import *
 
 from crypt import oracles

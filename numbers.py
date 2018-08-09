@@ -2,6 +2,7 @@ import itertools
 import os
 import math
 import random
+import functools
 
 from crypt import const
 from crypt import util
@@ -10,7 +11,17 @@ from crypt import encodings as enc
 #Returns random int between a and b, inclusive, not secure
 rand_int = random.randint
 
-gcd = math.gcd
+def gcd(*nums):
+    return functools.reduce(math.gcd, nums)
+
+def divides(a, b):
+    return b % a == 0
+
+def product(nums):
+    tot = 1
+    for num in nums:
+        tot *= num
+    return tot
 
 #true if square number
 def is_square(n):
@@ -341,7 +352,7 @@ def ilog(base, n):
     return count
 
 def num_bits(n):
-    return ilog(2, n) + 1
+    return ilog(2, abs(n)) + 1
 
 #true if the numbers are pairwise coprime
 def coprime(*nums):
