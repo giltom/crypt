@@ -102,7 +102,7 @@ class IVector:
         return num.isqrt(self.norm2())
     
     def norm(self):
-        return mp.mpf(self.norm2()).sqrt()
+        return math.sqrt(self.norm2())
 
 class IPolynomial:
     def __init__(self, *args, shift=0):
@@ -298,10 +298,23 @@ def update_ortho(basis, ortho, u, i, val):
         u[i][j] = project_factor(ortho[j], val)
         ortho[i] -= u[i][j] * ortho[j]
     for k in range(i+1, len(basis)):
-        oldterm = u[k][i] * ortho[i]
-        u[k][i] = project_factor(ortho[i], basis[k])
-        newterm = u[k][i] * val
-        ortho[k] = ortho[k] + oldterm - newterm
+        w = basis[k]
+        for j in range(k):
+            if j >= i:
+                u[k][j] = project_factor(ortho[j], basis[k])
+            w -= u[k][j] * ortho[j]
+        ortho[k] = w
+    """
+    rortho, ru = gram_schmidt(basis)
+    print('Real Ortho:')
+    print(rortho)
+    print('Calculated Ortho:')
+    print(ortho)
+    print('Real U:')
+    print(ru)
+    print('Calculated U:')
+    print(u)
+    """
 
 def lll(basis, delta=mp.fraction(3, 4)):
     basis = list(basis)
@@ -313,10 +326,10 @@ def lll(basis, delta=mp.fraction(3, 4)):
         for j in range(k-1, -1, -1):
             ukj = u[k][j]
             if abs(ukj) > mp.fraction(1,2):
-                decval = round(ukj)*basis[j]
-                newval = basis[k] - decval
-                print('updating ortho')
+                newval = basis[k] - round(ukj)*basis[j]
                 update_ortho(basis, ortho, u, k, newval)
+                #basis[k] = newval
+                #ortho, u = gram_schmidt(basis)
                 print('done updating')
         ukk1 = u[k][k-1]
         if ortho[k].norm2() >= (delta - ukk1**2) * ortho[k-1].norm2():
@@ -326,17 +339,19 @@ def lll(basis, delta=mp.fraction(3, 4)):
             temp = basis[k]
             update_ortho(basis, ortho, u, k, basis[k-1])
             update_ortho(basis, ortho, u, k-1, temp)
-            ortho, u = gram_schmidt(basis)
+            #basis[k-1], basis[k] = basis[k], basis[k-1]
+            #ortho, u = gram_schmidt(basis)
             if k > 1:
                 k -= 1
                 print('dec to', k)
+        print('Total mag:', sum(mp.mag(u[k][j]) for k in range(len(basis)) for j in range(k)))
     return basis
 
 #f - a polynomial
 #n - an int
 #epsilon - 1/7 or less, leave empty to choose automatically
 #finds all integer roots of f(x) mod n that are smaller than n^(1/d - epsilon).
-def coppersmith(f, n, epsilon):
+def coppersmith(f, n, epsilon, lll_delta=mp.fraction(3,4)):
     delta = f.degree()
     """
     if epsilon is None:
@@ -345,11 +360,11 @@ def coppersmith(f, n, epsilon):
     m = math.ceil(1 / (delta * epsilon))
     prec = num.ilog(10, n) * m
     npm = n**m
-    mp.mp.dps = prec
     print('delta:', delta, 'm:', m, 'epsilon:', epsilon, 'prec:', prec)
 
     maxdeg = 0
     polys = []
+    print('number of polys:', m*delta)
     for i in range(m):
         polys.append([])
         for j in range(delta):
@@ -359,15 +374,15 @@ def coppersmith(f, n, epsilon):
                 maxdeg = gij.degree()
 
     print('starting root comp')
-    bound = math.ceil(n ** (mp.fraction(1, delta) - epsilon))
+    bound = math.ceil(n**(mp.fraction(1,delta) - epsilon) / 2)
     print('bound:', bound)
     basis = []
     for row in polys:
         for poly in row:
-            bpoly = poly(IPolynomial(0, bound))
+            bpoly = poly(IPolynomial(0, bound)) % npm
             basis.append(IVector(bpoly.coefficients(maxdeg)))
     
-    lll_basis = lll(basis)
+    lll_basis = lll(basis, delta=lll_delta)
     shortest = min(lll_basis, key=IVector.norm2)
     coeffs = []
     for i, coeff in enumerate(shortest):
