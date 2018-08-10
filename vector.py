@@ -2,10 +2,10 @@ import operator
 import itertools
 from math import sqrt
 import numbers
+import mpmath as mp
 
 from . import numbers as num
 import math
-from decimal import Decimal, getcontext
 
 def is_number(thing):
     return isinstance(thing, numbers.Number)
@@ -102,7 +102,7 @@ class IVector:
         return num.isqrt(self.norm2())
     
     def norm(self):
-        return Decimal(self.norm2()).sqrt()
+        return mp.mpf(self.norm2()).sqrt()
 
 class IPolynomial:
     def __init__(self, *args, shift=0):
@@ -266,7 +266,7 @@ class IPolynomial:
 def project_factor(u, v):
     if not u:
         return 0
-    return Decimal(u @ v) / u.norm2()
+    return mp.mpf(u @ v) / u.norm2()
 
 def gram_schmidt(basis):
     n = len(basis)
@@ -303,7 +303,7 @@ def update_ortho(basis, ortho, u, i, val):
         newterm = u[k][i] * val
         ortho[k] = ortho[k] + oldterm - newterm
 
-def lll(basis, delta=Decimal('0.75')):
+def lll(basis, delta=mp.fraction(3, 4)):
     basis = list(basis)
     ortho, u = gram_schmidt(basis)
     n = len(basis) - 1
@@ -312,7 +312,7 @@ def lll(basis, delta=Decimal('0.75')):
     while k <= n:
         for j in range(k-1, -1, -1):
             ukj = u[k][j]
-            if abs(ukj) > Decimal('0.5'):
+            if abs(ukj) > mp.fraction(1,2):
                 decval = round(ukj)*basis[j]
                 newval = basis[k] - decval
                 print('updating ortho')
@@ -344,9 +344,8 @@ def coppersmith(f, n, epsilon):
     """
     m = math.ceil(1 / (delta * epsilon))
     prec = num.ilog(10, n) * m
-    getcontext().prec = 100 
     npm = n**m
-
+    mp.mp.dps = prec
     print('delta:', delta, 'm:', m, 'epsilon:', epsilon, 'prec:', prec)
 
     maxdeg = 0
@@ -354,24 +353,24 @@ def coppersmith(f, n, epsilon):
     for i in range(m):
         polys.append([])
         for j in range(delta):
-            gij = ((n**i * f**(m-i)) << j) % npm
+            gij = ((n**i * f**(m-i)) << j)
             polys[i].append(gij)
             if gij.degree() > maxdeg:
                 maxdeg = gij.degree()
 
     print('starting root comp')
-    bound = math.ceil(n ** (1/Decimal(delta) - epsilon))
+    bound = math.ceil(n ** (mp.fraction(1, delta) - epsilon))
     print('bound:', bound)
     basis = []
     for row in polys:
         for poly in row:
-            bpoly = poly(IPolynomial(0, bound)) % npm
+            bpoly = poly(IPolynomial(0, bound))
             basis.append(IVector(bpoly.coefficients(maxdeg)))
     
     lll_basis = lll(basis)
     shortest = min(lll_basis, key=IVector.norm2)
     coeffs = []
     for i, coeff in enumerate(shortest):
-        #assert num.divides(bound**i, coeff)
+        assert num.divides(bound**i, coeff)
         coeffs.append(coeff // bound**i)
     return IPolynomial(coeffs)

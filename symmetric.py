@@ -9,13 +9,13 @@ from crypt import byte
 from crypt import encodings as enc
 from crypt import util
 
-def symmetric_encrypt(plaintext, algorithm, mode, padder=None):
+def symmetric_encrypt(plaintext, algorithm, mode=None, padder=None):
     cipher = Cipher(algorithm, mode, backend=const.BACKEND)
     encryptor = cipher.encryptor()
     padded = plaintext if padder is None else padder(plaintext)
     return encryptor.update(padded) + encryptor.finalize()
 
-def symmetric_decrypt(ciphertext, algorithm, mode, unpadder=None):
+def symmetric_decrypt(ciphertext, algorithm, mode=None, unpadder=None):
     cipher = Cipher(algorithm, mode, backend=const.BACKEND)
     decryptor = cipher.decryptor()
     plain = decryptor.update(ciphertext) + decryptor.finalize()
