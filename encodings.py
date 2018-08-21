@@ -1,8 +1,196 @@
 import binascii
 import base64
 from collections import OrderedDict
+from collections.abc import MutableSequence
+import itertools
 
-from crypt import util
+from . import util
+from . import numbers as num
+
+def check_bit(thing):
+    if thing != 0 and thing != 1:
+        raise ValueError('Invalid bit ' + str(thing))
+
+class Bits(MutableSequence):
+    def __init__(self, val=None, length=None, pad_right=False, pad_bit=0):
+        if type(val) is str:
+            num = int(val, 2)
+        elif type(val) is int:
+            num = val
+        elif type(val) is bytes or type(val) is bytearray:
+            num = bytes2int_big(b)
+        elif val is not None:
+            bits = list(val)
+            num = 0
+            for bit in bits:
+                check_bit(bit)
+                num <<= 1
+                num += bit
+        if num < 0:
+            if length is None:
+                raise ValueError('Length must be provided for negative numbers')
+            num &= (1<<length) - 1
+        self.num = num
+        self.length = num.num_bits(num)
+        if length is not None:
+            if pad_right:
+                self.rsetlen(length, pad_bit)
+            else:
+                self.lsetlen(length, pad_bit)
+    
+    def __len__(self):
+        return self.length
+    
+    def __int__(self):
+        return self.num
+    
+    def __getitem__(self, key):
+        if type(key) is slice:
+            start, stop, step = key.indices(self.length)
+            return Bits(self[i] for i in range(start, stop, step))
+        elif type(key) is int:
+            if key < 0:
+                key = self.length + key
+            if key > self.length:
+                raise IndexError()
+            if self.num & (1 << (self.length - key - 1)):
+                return 1
+            return 0
+        else:
+            raise ValueError('Invalid index')
+    
+    def __setitem__(self, key, val):
+        if type(key) is slice:
+            start, stop, step = key.indices()
+            ibits = itertools.islice(self, start, stop, step)
+            self.num = int(Bits(ibits))
+        elif type(key) is int:
+            self[key]   #just to check the index
+            check_bit(val)
+            mask = 1 << (self.length - key - 1)
+            if val == 1:
+                self.num |= mask
+            else:
+                self.num &= ~mask
+        else:
+            raise ValueError('Invalid index')
+
+    def __delitem__(self, key):
+        lbits = list(self)
+        del lbits[key]
+        self.num = int(Bits(lbits))
+
+    def insert(self, key, val):
+        check_bit(val)
+        self.bits.insert(key, val)
+    
+    def __str__(self):
+        return ''.join(str(bit) for bit in self)
+
+    def __repr__(self):
+        return 'Bits(\'{}\')'.format(''.join(str(bit) for bit in self.bits))
+    
+    def __bool__(self):
+        return any(self.bits)
+    
+    def ltruncate(self, length):
+        if len(self) > length:
+            self.bits = self.bits[-length:]
+
+    def rtruncate(self, length):
+        if len(self) > length:
+            self.bits = self.bits[:length]
+    
+    def lpad(self, length, bit=0):
+        check_bit(bit)
+        if length > len(self):
+            self.bits = [bit]*(length - len(self)) + self.bits
+    
+    def rpad(self, length, bit=0):
+        check_bit(bit)
+        if length > len(self):
+            self.bits += [bit]*(length - len(self))
+    
+    def lsetlen(self, length, bit=0):
+        self.ltruncate(length)
+        self.lpad(length, bit)
+    
+    def rsetlen(self, length, bit=0):
+        self.rtruncate(length)
+        self.rpad(length, bit)
+    
+    def ltrim(self):
+        i = 0
+        while self[i] == 0:
+            i += 1
+        del self.bits[:i]
+    
+    def rtrim(self):
+        i = len(self)
+        while self[i-1] == 0:
+            i -= 1
+        del self.bits[i:]
+    
+    #pad to nearest multiple of length
+    def lpad_mult(self, mult, bit=0):
+        remainder = len(self) % mult
+        if remainder != 0:
+            length = len(self) - remainder + mult
+            self.lpad(length, bit)
+    
+    #pad to nearest multiple of length
+    def rpad_mult(self, mult, bit=0):
+        remainder = len(self) % mult
+        if remainder != 0:
+            length = len(self) - remainder + mult
+            self.rpad(length, bit)
+    
+    def _copy_op(self, op, other, check_cls=None):
+        if check_cls is None:
+            check_cls = Bits
+        if not isinstance(other, check_cls):
+            return NotImplemented
+        copy = Bits(self)
+        op(copy, other)
+        return copy
+
+    def _arith_op(self, op, other):
+        if isinstance(other, Bits):
+            other = int(other)
+
+    def __ilshift__(self, num):
+        if not isinstance(num, int):
+            return NotImplemented
+        self.length += num
+        self.num <<= num
+        return self
+    
+    def __irshift(self, num):
+        if not isinstance(num, int):
+            return NotImplemented
+        self.length += num
+        return self
+    
+    def __lshift__(self, num):
+        return self._copy_op(Bits.__ilshift__, num, int)
+    
+    def __rshift__(self, num):
+        return self._copy_op(Bits.__irshift__, num, int)
+    
+    def __iadd__(self, other):
+        self.num += other.num
+        maxlen = max(len(self), len(other), num.num_bits(self.num))
+        self.length = maxlen
+    
+    
+    
+    def __imatmul__(self, other):
+        self <<=
+    
+    def __matmul__(self, other):
+        if type(other) is not Bits:
+            return NotImplemented
+        return self
 
 #hex string to bytes
 def hex2bytes(hexstr):

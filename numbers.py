@@ -352,7 +352,12 @@ def ilog(base, n):
     return count
 
 def num_bits(n):
-    return ilog(2, abs(n)) + 1
+    n = abs(n)
+    count = 0
+    for n != 0:
+        n >>= 1
+        count += 1
+    return count
 
 #true if the numbers are pairwise coprime
 def coprime(*nums):
