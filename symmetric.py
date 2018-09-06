@@ -36,7 +36,7 @@ def aes_encrypt_block(plaintext, key):
 def aes_decrypt_block(ciphertext, key):
     if len(ciphertext) != 16:
         raise util.CryptoException('Ciphertext must be 16 bytes')
-    return aes_decrypt(plaintext, key, modes.ECB(), unpadder=None)
+    return aes_decrypt(ciphertext, key, modes.ECB(), unpadder=None)
 
 def aes_encrypt_ecb(plaintext, key, padder=pad.pkcs7_pad_16):
     return aes_encrypt(plaintext, key, modes.ECB(), padder=padder)

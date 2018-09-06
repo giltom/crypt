@@ -2,7 +2,7 @@ import itertools
 import functools
 
 from crypt import util
-from crypt import numbers as num
+from crypt import numtheory as num
 
 ORD_A = ord('A')
 ORD_Z = ord('Z')
@@ -110,9 +110,9 @@ class LetterConverter:
     def nums2str(self, nums, context=None):
         if context is None:
             if self.case is UPPER:
-                context = [UPPER] * len(s)
+                context = [UPPER] * len(nums)
             else:
-                context = [LOWER] * len(s)
+                context = [LOWER] * len(nums)
         res = ''
         i = 0
         for ctx in context:

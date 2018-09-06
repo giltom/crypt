@@ -4,9 +4,9 @@ import math
 import random
 import functools
 
-from crypt import const
-from crypt import util
-from crypt import encodings as enc
+from . import const
+from . import util
+from . import encodings as enc
 
 #Returns random int between a and b, inclusive, not secure
 rand_int = random.randint
@@ -354,7 +354,7 @@ def ilog(base, n):
 def num_bits(n):
     n = abs(n)
     count = 0
-    for n != 0:
+    while n != 0:
         n >>= 1
         count += 1
     return count
@@ -368,7 +368,7 @@ def coprime(*nums):
 #x = a1 (mod m1), x = a2 (mod m2), ...
 def chinese_remainder(*equations):
     m = 1
-    for ai, mi in equations:
+    for _, mi in equations:
         m *= mi
     return sum(ai * (m//mi) * mod_inverse(m//mi, mi) for ai, mi in equations) % m
 

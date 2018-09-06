@@ -4,7 +4,7 @@ from math import sqrt
 import numbers
 import mpmath as mp
 
-from . import numbers as num
+from . import numtheory as num
 import math
 
 def is_number(thing):
@@ -44,7 +44,7 @@ class IVector:
         return any(x != 0 for x in self)
     
     def __hash__(self):
-        return __hash__(self.vals)
+        return hash(self.vals)
     
     def __eq__(self, other):
         return isinstance(other, IVector) and self.vals == other.vals
@@ -100,7 +100,7 @@ class IVector:
     
     def inorm(self):
         return num.isqrt(self.norm2())
-    
+
     def norm(self):
         return math.sqrt(self.norm2())
 
@@ -163,7 +163,7 @@ class IPolynomial:
         return res
     
     def __hash__(self):
-        return __hash__(self.vals)
+        return hash(self.vals)
     
     def __eq__(self, other):
         return isinstance(other, IPolynomial) and self.vals == other.vals

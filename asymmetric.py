@@ -3,7 +3,7 @@ import random
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from crypt import numbers as num
+from crypt import numtheory as num
 from crypt import encodings as enc
 from crypt import const
 
@@ -19,7 +19,7 @@ def gm_encrypt(p, x, n):
     res = []
     for bit in enc.bytes2bits(p):
         y = rand.randrange(n)
-        while gcd(y, n) != 1:
+        while num.gcd(y, n) != 1:
             y = rand.randrange(n)
         res.append((y**2 * x**bit) % n)
     return res

@@ -67,7 +67,7 @@ def normal_byte_dist(b, probs):
         #approximate normal distribution
         expect = probs[byte] * length
         dev = math.sqrt(expect * (1 - probs[byte]))
-        prob = phi((freqs[byte] + 0.5 - expect) / dev) - phi((freqs[byte] - 0.5 - expect) / dev)
+        prob = util.phi((freqs[byte] + 0.5 - expect) / dev) - util.phi((freqs[byte] - 0.5 - expect) / dev)
         score *= prob
     return score
 

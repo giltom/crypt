@@ -7,7 +7,7 @@ from crypt import util
 from crypt import const
 from crypt import byte
 from crypt import encodings as enc
-from crypt import numbers as num
+from crypt import numtheory as num
 
 #returns key,plaintext or None
 def break_single_char_xor(b):

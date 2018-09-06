@@ -34,7 +34,7 @@ def aes_random_encrypt(plaintext):
         return sym.aes_encrypt_ecb(text, key)
     else:
         print('Using cbc')
-        return sym.aes_encrypt_cbc(text, key, random_aes_key())
+        return sym.aes_encrypt_cbc(text, key, os.urandom(16))
 
 
 

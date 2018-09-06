@@ -4,7 +4,7 @@ from crypt import const
 
 from crypt import byte
 from crypt import encodings as enc
-from crypt import numbers as num
+from crypt import numtheory as num
 from crypt import util
 
 #hash b using the hash algorithm hfunc provided by cryptography

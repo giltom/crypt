@@ -5,12 +5,12 @@ from collections.abc import MutableSequence
 import itertools
 
 from . import util
-from . import numbers as num
+from . import numtheory as num
 
 def check_bit(thing):
     if thing != 0 and thing != 1:
         raise ValueError('Invalid bit ' + str(thing))
-
+"""
 class Bits(MutableSequence):
     def __init__(self, val=None, length=None, pad_right=False, pad_bit=0):
         if type(val) is str:
@@ -18,7 +18,7 @@ class Bits(MutableSequence):
         elif type(val) is int:
             num = val
         elif type(val) is bytes or type(val) is bytearray:
-            num = bytes2int_big(b)
+            num = bytes2int_big(val)
         elif val is not None:
             bits = list(val)
             num = 0
@@ -182,16 +182,11 @@ class Bits(MutableSequence):
         maxlen = max(len(self), len(other), num.num_bits(self.num))
         self.length = maxlen
     
-    
-    
-    def __imatmul__(self, other):
-        self <<=
-    
     def __matmul__(self, other):
         if type(other) is not Bits:
             return NotImplemented
         return self
-
+"""
 #hex string to bytes
 def hex2bytes(hexstr):
     return bytes.fromhex(hexstr)
@@ -281,7 +276,7 @@ def is_bin(s):
 def is_bits(l):
     if type(l) is not list:
         return False
-    return all(c == 0 or c == 1 for c in s)
+    return all(c == 0 or c == 1 for c in l)
 
 
 #add some bytes to produce valid base64, assuming the string starts at index start
