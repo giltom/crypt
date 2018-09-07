@@ -23,6 +23,14 @@ def product(nums):
         tot *= num
     return tot
 
+def factorial(n):
+    return product(range(2, n+1))
+
+def choose(n, k):
+    if k > n:
+        return 0
+    return factorial(n) // (factorial(k) * factorial(n - k))
+
 #true if square number
 def is_square(n):
     start = n - 1

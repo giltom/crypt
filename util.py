@@ -66,3 +66,6 @@ def rrotate(i, amt, size):
     amt = amt % size
     mask = ~-(1 << size)
     return ((i >> amt) + (i << (size - amt))) & mask
+
+def uint32(num):
+    return num & 0xFFFFFFFF
