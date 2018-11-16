@@ -176,6 +176,8 @@ def count_trailing_zeros(n):
 
 #Fast check if n is prime with error probability of at most 1/4. A False answer is always correct, but a True answer may be wrong.
 def miller_rabin(n):
+    if n == 1:
+        return False
     nm1 = n - 1
     k = count_trailing_zeros(nm1)
     m = (nm1) >> k
@@ -197,15 +199,49 @@ def is_prime_fast(n, iterations=50):
     return True
 
 #Very simple but inefficient prime factoring algorithm
-def prime_factors(n):
-    facts = itertools.chain(pregen_primes(), itertools.count(max_pregen_prime()+2, 2))
-    fact = next(facts)
-    while n > 1:
-        if n % fact == 0:
-            yield fact
-            n //= fact
+#Yields prime factors of n, in order, with repetitions
+def factors(n, verbose=False):
+    for factor in [2,3]:
+        while n % factor == 0:
+            yield factor
+            n //= factor
+    if is_prime_fast(n):
+        yield n
+        return
+    factor = 5
+    root = isqrt(n)
+    step = 2
+    num_steps = 0
+    while factor <= root:
+        if n % factor == 0:
+            yield factor
+            n //= factor
+            if is_prime_fast(n):
+                break
+            root = isqrt(n)
         else:
-            fact = next(facts)
+            factor += step
+            step = 6 - step
+        if verbose:
+            num_steps += 1
+            if num_steps == 100000:
+                print(f'factor: {factor} root: {root} relative: {factor / root :.02%}')
+                num_steps = 0
+    if n > 1:
+        yield n
+
+#Yield all unique divisors of n. Not necessarily in order.
+def all_divisors(n, include_1=True, include_n=True):
+    facts = list(factors(n))
+    used = set()
+    start = 0 if include_1 else 1
+    stop = len(facts) + 1 if include_n else len(facts)
+    for prodlen in range(start, stop):
+        for terms in itertools.combinations(facts, prodlen):
+            divisor = product(terms)
+            if divisor not in used:
+                yield divisor
+                used.add(divisor)
 
 #generates a random number with the given number of bits. Do not use for real crypto.
 #the MSB is always 1, so there are actually 2^(nbits-1) bits of randomness.
@@ -247,12 +283,44 @@ def jacobi(a, *factors):
 def is_quad_residue(a, p):
     return legendre(a, p) == 1
 
-#Generator of a list of pregenerated orimes up to some number (currently 1 billion)
+#Yield all primes up to limit, in order (or None).
+def primes(limit=None):
+    if limit >= 2:
+        yield 2
+    if limit >= 3:
+        yield 3
+    yield from _generate_primes([2,3], limit)
+    
+def _generate_primes(existing_primes, limit=None):
+    num = existing_primes[-1] + 2
+    if divides(3, num):
+        num += 2
+        step = 2
+    else:
+        step = 4
+    primes = list(existing_primes)
+    while limit is None or num <= limit:
+        sqrt = isqrt(limit)
+        found = False
+        for prime in primes:
+            if prime > sqrt:
+                break
+            if divides(num, prime):
+                found = True
+                break
+        if not found:
+            yield num
+            primes.append(num)
+        num += step
+        step = 6 - step
+
+#Generator of a list of pregenerated primes up to some number (currently 1 billion)
 def pregen_primes():
-    fp = open(const.PRIMES_FNAME, 'r')
-    for line in fp:
-        yield int(line, 16)
-    fp.close()
+    if pregen_primes.primes is None:
+        with open(const.PRIMES_FNAME, 'r') as fp:
+            pregen_primes.primes = [int(line, 16) for line in fp]
+    yield from pregen_primes.primes
+pregen_primes.primes = None
 
 def max_pregen_prime():
     if max_pregen_prime.maxprime:

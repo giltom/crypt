@@ -151,51 +151,77 @@ def wieners_algorithm(n, e):
                 return d, p, n // p
     return None, None, None
 
+#Like print but do nothing if verbose is False
+def vprint(verbose, *args, **kwargs):
+    if verbose:
+        print(*args, **kwargs)
+
 #Tries to factor an RSA modulus by applying multiple algorithms with the given timeout (in seconds) for each algorithm.
 #e doesn't have to be given, but giving it may allow addional algorithms.
-def rsa_try_factor(n, e=None, timeout=10):
-    print('Attempting to factor n={:d}'.format(n))
+def rsa_try_factor(n, e=None, timeout=10, verbose=True):
+    vprint(verbose, 'Attempting to factor n={:d}'.format(n))
 
-    print('Running Pollard Rho Algorithm...')
+    vprint(verbose, 'Running Pollard Rho Algorithm...')
     with util.time_limit(timeout):
         try:
             return num.pollard_rho_algorithm(n)
         except util.TimeoutException:
-            print('Failed: Timeout.')
+            vprint(verbose, 'Failed: Timeout.')
 
-    print('Running Pollard p-1 Algorithm...')
+    vprint(verbose, 'Running Pollard p-1 Algorithm...')
     with util.time_limit(timeout):
         try:
             return num.pollard_pm1_incremental(n)
         except util.TimeoutException:
-            print('Failed: Timeout.')
+            vprint(verbose, 'Failed: Timeout.')
 
     if e:
-        print('Running Wiener\'s Algorithm...')
+        vprint(verbose, 'Running Wiener\'s Algorithm...')
         with util.time_limit(timeout):
             try:
                 _, p, __ = wieners_algorithm(n, e)
             except util.TimeoutException:
-                print('Failed: Timeout.')
+                vprint(verbose, 'Failed: Timeout.')
             if not p:
-                print('Failed: Decryption exponent too large.')
+                vprint(verbose, 'Failed: Decryption exponent too large.')
 
-    print('Running Fermat\'s Algorithm...')
+    vprint(verbose, 'Running Fermat\'s Algorithm...')
     with util.time_limit(timeout):
         try:
             return num.fermat_factor(n)
         except util.TimeoutException:
-            print('Failed: Timeout.')
+            vprint(verbose, 'Failed: Timeout.')
 
-    print('Running Trial Division...')
+    vprint(verbose, 'Running Trial Division...')
     with util.time_limit(timeout):
         try:
-            return num.trial_factor_pregen(n)
+            return next(num.factors(n))
         except util.TimeoutException:
-            print('Failed: Timeout.')
+            vprint(verbose, 'Failed: Timeout.')
 
-    print('Failed to factor n.')
+    vprint(verbose, 'Failed to factor n.')
     return None
+
+#Yield the full factorization of n by repeatedly calling rsa_try_factor
+def try_full_factor(n, timeout=10, verbose=True):
+    vprint(verbose, f'Attempting to find full factorization of {n}')
+    if n < 1000000000:
+        for factor in num.factors(n):
+            vprint(verbose, f'Found factor: {factor}')
+            yield factor
+        return
+    while n > 1:
+        if num.is_prime_fast(n):
+            vprint(verbose, f'{n} is prime.')
+            yield n
+            break
+        factor = rsa_try_factor(n, timeout=timeout)
+        if factor is None:
+            vprint(verbose, 'Failed to find full factorization.')
+            break
+        vprint(verbose, f'Found factor: {factor}')
+        yield from try_full_factor(factor, timeout=timeout, verbose=verbose)
+        n //= factor
 
 #Breaks textbook elgamal signature when the same random nonce is used twice.
 #Arguments:

@@ -63,6 +63,14 @@ def parse_pem_rsa_private_key(fname, password=None):
     pubnums = key.public_key().public_numbers()
     return pubnums.n, pubnums.e, prinums.d, prinums.p, prinums.q
 
+#return n, e
+def parse_pem_rsa_public_key(fname):
+    with open(fname, 'rb') as f:
+        key_data = f.read()
+    key = serialization.load_pem_public_key(key_data, const.BACKEND)
+    pubnums = key.public_numbers()
+    return pubnums.n, pubnums.e
+
 #Return the prime factors p,q of n. e is the public exponent and d is the private exponent.
 def rsa_factor_given_private_key(n, e, d):
     return rsa.rsa_recover_prime_factors(n, e, d)
