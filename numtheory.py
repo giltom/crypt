@@ -230,18 +230,22 @@ def factors(n, verbose=False):
     if n > 1:
         yield n
 
+#Yield all unique products of the given number. Not necessarily in order.
+def unique_products(nums, include_1=True, include_all=True):
+    used = set()
+    start = 0 if include_1 else 1
+    stop = len(nums) + 1 if include_all else len(nums)
+    for prodlen in range(start, stop):
+        for terms in itertools.combinations(nums, prodlen):
+            res = product(terms)
+            if res not in used:
+                yield res
+                used.add(res)
+
 #Yield all unique divisors of n. Not necessarily in order.
 def all_divisors(n, include_1=True, include_n=True):
     facts = list(factors(n))
-    used = set()
-    start = 0 if include_1 else 1
-    stop = len(facts) + 1 if include_n else len(facts)
-    for prodlen in range(start, stop):
-        for terms in itertools.combinations(facts, prodlen):
-            divisor = product(terms)
-            if divisor not in used:
-                yield divisor
-                used.add(divisor)
+    yield from unique_products(facts, include_1, include_n)
 
 #generates a random number with the given number of bits. Do not use for real crypto.
 #the MSB is always 1, so there are actually 2^(nbits-1) bits of randomness.
@@ -472,12 +476,14 @@ def shanks_algorithm(a, b, n, order=None):
     #find elements of l1 and l2 that have the same 2nd coordinate:
     i = 0
     j = 0
-    while l1[i][1] != l2[j][1]:
+    while i < len(l1) and j < len(l2) and l1[i][1] != l2[j][1]:
         if l1[i][1] < l2[j][1]:
             i += 1
         else:
             j += 1
-    return (m * l1[i][0] + l2[j][0]) % order
+    if i < len(l1) and j < len(l2):
+        return (m * l1[i][0] + l2[j][0]) % order
+    raise util.CryptoException('No logarithm')
 
 #discrete log_a(b) mod n.
 #order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)
@@ -508,12 +514,13 @@ def pollard_rho_dislog_algorithm(a, b, n, order=None):
         di = (it - i) // d
         dj = (j - jt) // d
     dorder = order // d
-    #now we have c*dj = di (mod dorder)
+    #now we have dc*dj = di (mod dorder)
     dc = (mod_inverse(dj, dorder) * (di % dorder)) % dorder
     for k in range(d):
         c = (dc + k*dorder) % order
         if pow(a, c, n) == b:
             return c
+    raise util.CryptoException('No logarithm')
 
 #returns the discrete (log_a(b) mod n) mod q^c, where q is prime, q^c divides order, and q^(c+1) doesn't.
 #order is the order of a in Z_n. If not given, it is taken to be n-1 (i.e. a is a primitive element mod n)

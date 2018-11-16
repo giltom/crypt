@@ -27,3 +27,6 @@ def pkcs7_is_valid(b, bsize):
         return True
     except ValueError:
         return False
+
+def zero_pad(b, bsize):
+    return b + b'\0'*(-len(b) % bsize)
