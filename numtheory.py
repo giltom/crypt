@@ -225,7 +225,7 @@ def factors(n, verbose=False):
         if verbose:
             num_steps += 1
             if num_steps == 100000:
-                print(f'factor: {factor} root: {root} relative: {factor / root :.02%}')
+                print('factor: {} root: {} relative: {:.02%}'.format(factor, root, factor / root))
                 num_steps = 0
     if n > 1:
         yield n

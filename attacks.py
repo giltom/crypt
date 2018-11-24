@@ -204,22 +204,22 @@ def rsa_try_factor(n, e=None, timeout=10, verbose=True):
 
 #Yield the full factorization of n by repeatedly calling rsa_try_factor
 def try_full_factor(n, timeout=10, verbose=True):
-    vprint(verbose, f'Attempting to find full factorization of {n}')
+    vprint(verbose, 'Attempting to find full factorization of', n)
     if n < 1000000000:
         for factor in num.factors(n):
-            vprint(verbose, f'Found factor: {factor}')
+            vprint(verbose, 'Found factor:', factor)
             yield factor
         return
     while n > 1:
         if num.is_prime_fast(n):
-            vprint(verbose, f'{n} is prime.')
+            vprint(verbose, n, 'is prime.')
             yield n
             break
         factor = rsa_try_factor(n, timeout=timeout)
         if factor is None:
             vprint(verbose, 'Failed to find full factorization.')
             break
-        vprint(verbose, f'Found factor: {factor}')
+        vprint(verbose, 'Found factor:', factor)
         yield from try_full_factor(factor, timeout=timeout, verbose=verbose)
         n //= factor
 
