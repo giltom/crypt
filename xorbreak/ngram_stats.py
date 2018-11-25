@@ -1,5 +1,6 @@
 import pickle
 import math
+import functools
 
 from crypt import util
 
@@ -29,34 +30,23 @@ class NGramStats:
         self.uniprobs = [nbefore[b] / npairs for b in range(256)]
         self.delta = delta
         self.maxlen = max(len(k) for k in self.counts)
-        self.probcache = {}
         self.usedbytes = [b for b in range(256) if bytes([b]) in self.counts]
 
     #probability of b given the prefix
+    @functools.lru_cache(maxsize=2**16)
     def prob(self, b, prefix):
         if not prefix:
             return self.uniprobs[b]
-        cached = self.probcache.get((b, prefix))
-        if cached is not None:
-            return cached
         if prefix not in self.counts:
             return self.prob(b, prefix[1:])
-        nafter = 0
-        timesafter = 0
-        for bt in self.usedbytes:
-            ngram = prefix + bytes([bt])
-            count = self.counts.get(ngram)
-            if count is not None:
-                nafter += 1
-                timesafter += count
+        nafter, timesafter = self.get_after_stats(prefix)
         seq = prefix + bytes([b])
         count = self.counts.get(seq)
         if count is not None:
             nseq = count - self.delta
         else:
             nseq = 0
-        prob = (nseq + self.delta * nafter * self.prob(b, prefix[1:])) / timesafter
-        self.probcache[b, prefix] = prob
+        prob = (nseq + nafter * self.prob(b, prefix[1:])) / timesafter
         return prob
     
     def log_prob(self, b, prefix):
@@ -67,3 +57,18 @@ class NGramStats:
 
     def is_byte_used(self, b):
         return self.uniprobs[b] != 0
+
+    #Return (nafter, timesafter) where:
+    #nafter is (the number of unique bytes that appear after prefix) * delta
+    #timesafter is the number of times prefix appears not at the end of the text
+    @functools.lru_cache(maxsize=256)
+    def get_after_stats(self, prefix):
+        nafter = 0
+        timesafter = 0
+        for bt in self.usedbytes:
+            ngram = prefix + bytes([bt])
+            count = self.counts.get(ngram)
+            if count is not None:
+                nafter += 1
+                timesafter += count
+        return nafter * self.delta, timesafter
