@@ -1,4 +1,6 @@
 import pickle
+import math
+
 from crypt import util
 
 def load_ngram_counts(fname):
@@ -6,6 +8,8 @@ def load_ngram_counts(fname):
     counts = pickle.load(f)
     f.close()
     return counts
+
+MINF = float('-inf')
 
 class NGramStats:
     def __init__(self, counts=None, fname=None, delta=0.75):
@@ -22,9 +26,7 @@ class NGramStats:
                 if bytes([b1, b2]) in self.counts:
                     npairs += 1
                     nbefore[b2] += 1
-        self.uniprobs = []
-        for b in range(256):
-            self.uniprobs.append(nbefore[b] / npairs)
+        self.uniprobs = [nbefore[b] / npairs for b in range(256)]
         self.delta = delta
         self.maxlen = max(len(k) for k in self.counts)
         self.probcache = {}
@@ -32,29 +34,36 @@ class NGramStats:
 
     #probability of b given the prefix
     def prob(self, b, prefix):
-        if len(prefix) == 0:
+        if not prefix:
             return self.uniprobs[b]
-        if self.uniprobs[b] == 0:
-            return 0.0
-        if (b, prefix) in self.probcache:
-            return self.probcache[(b, prefix)]
+        cached = self.probcache.get((b, prefix))
+        if cached is not None:
+            return cached
         if prefix not in self.counts:
             return self.prob(b, prefix[1:])
         nafter = 0
         timesafter = 0
         for bt in self.usedbytes:
             ngram = prefix + bytes([bt])
-            if ngram in self.counts:
+            count = self.counts.get(ngram)
+            if count is not None:
                 nafter += 1
-                timesafter += self.counts[ngram]
+                timesafter += count
         seq = prefix + bytes([b])
-        if seq in self.counts:
-            nseq = self.counts[seq] - self.delta
+        count = self.counts.get(seq)
+        if count is not None:
+            nseq = count - self.delta
         else:
             nseq = 0
-        res = (nseq + self.delta * nafter * self.prob(b, prefix[1:])) / timesafter
-        self.probcache[(b, prefix)] = res
-        return res
+        prob = (nseq + self.delta * nafter * self.prob(b, prefix[1:])) / timesafter
+        self.probcache[b, prefix] = prob
+        return prob
+    
+    def log_prob(self, b, prefix):
+        prob = self.prob(b, prefix)
+        if prob == 0:
+            return MINF
+        return math.log(prob)
 
     def is_byte_used(self, b):
         return self.uniprobs[b] != 0
